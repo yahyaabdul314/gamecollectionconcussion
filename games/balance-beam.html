@@ -13,14 +13,17 @@
         <h2>Virtual Balance Beam</h2>
         <p>Walk along the virtual beam. This trains balance and spatial awareness in a safe environment.</p>
         <p><strong>Tip:</strong> Move slowly and maintain steady head position.</p>
+        <p><strong>New:</strong> Physics information (tilt, speed, angle) is now displayed in VR to help monitor your movements.</p>
     </div>
 
+    <script src="webxr-utils.js"></script>
     <script type="module">
         import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.150.0/build/three.module.js';
         import { VRButton } from 'https://cdn.jsdelivr.net/npm/three@0.150.0/examples/jsm/webxr/VRButton.js';
 
         let scene, camera, renderer;
         let beam, progressMarkers = [];
+        let physicsTracker, physicsDisplay;
 
         function init() {
             scene = new THREE.Scene();
@@ -95,6 +98,10 @@
             const sky = new THREE.Mesh(skyGeometry, skyMaterial);
             scene.add(sky);
 
+            // Initialize physics tracking and display
+            physicsTracker = new PhysicsTracker(camera);
+            physicsDisplay = new PhysicsDisplay(scene, { x: 1.5, y: 2, z: -3 });
+
             window.addEventListener('resize', onWindowResize);
             renderer.setAnimationLoop(render);
         }
@@ -112,6 +119,13 @@
                 const scale = 1 + Math.sin(Date.now() * 0.002 + offset) * 0.2;
                 marker.scale.set(scale, scale, scale);
             });
+
+            // Update physics tracking and display
+            if (physicsTracker && physicsDisplay) {
+                physicsTracker.update();
+                const physicsData = physicsTracker.getData();
+                physicsDisplay.update(physicsData);
+            }
 
             renderer.render(scene, camera);
         }
