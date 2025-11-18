@@ -1,20 +1,64 @@
 /**
  * Progression Tracking System for VR Concussion Recovery Games
  * Tracks game performance, therapy progress, and provides recommendations
+ * Supports both Supabase (cloud) and localStorage (local) storage
  */
 
 class ProgressionTracker {
     constructor() {
         this.storageKey = 'concussion_progression';
         this.goalsKey = 'concussion_goals';
-        this.data = this.loadData();
-        this.goals = this.loadGoals();
+        this.useSupabase = false;
+        this.authManager = null;
+        this.currentUser = null;
+
+        // Initialize Supabase if available
+        this.initializeSupabase();
+
+        this.data = null;
+        this.goals = null;
+        this.initialized = false;
+    }
+
+    /**
+     * Initialize Supabase connection
+     */
+    async initializeSupabase() {
+        if (typeof getAuthManager === 'function') {
+            try {
+                this.authManager = getAuthManager();
+                this.currentUser = await this.authManager.getCurrentUser();
+                this.useSupabase = !!this.currentUser;
+                console.log('Progression Tracker:', this.useSupabase ? 'Using Supabase' : 'Using localStorage');
+            } catch (error) {
+                console.log('Supabase not available, falling back to localStorage');
+                this.useSupabase = false;
+            }
+        }
+    }
+
+    /**
+     * Ensure tracker is initialized (async)
+     */
+    async initialize() {
+        if (this.initialized) return;
+
+        await this.initializeSupabase();
+
+        if (this.useSupabase) {
+            await this.loadFromSupabase();
+        } else {
+            this.data = this.loadDataLocal();
+            this.goals = this.loadGoalsLocal();
+        }
+
+        this.initialized = true;
     }
 
     /**
      * Load progression data from localStorage
      */
-    loadData() {
+    loadDataLocal() {
         const stored = localStorage.getItem(this.storageKey);
         if (stored) {
             return JSON.parse(stored);
@@ -31,14 +75,14 @@ class ProgressionTracker {
     /**
      * Save progression data to localStorage
      */
-    saveData() {
+    saveDataLocal() {
         localStorage.setItem(this.storageKey, JSON.stringify(this.data));
     }
 
     /**
      * Load goals from localStorage
      */
-    loadGoals() {
+    loadGoalsLocal() {
         const stored = localStorage.getItem(this.goalsKey);
         if (stored) {
             return JSON.parse(stored);
@@ -53,15 +97,178 @@ class ProgressionTracker {
     /**
      * Save goals to localStorage
      */
-    saveGoals() {
+    saveGoalsLocal() {
         localStorage.setItem(this.goalsKey, JSON.stringify(this.goals));
+    }
+
+    /**
+     * Load all data from Supabase
+     */
+    async loadFromSupabase() {
+        try {
+            if (!this.currentUser) {
+                throw new Error('No authenticated user');
+            }
+
+            const supabase = getSupabaseClient();
+
+            // Load sessions
+            const { data: sessions, error: sessionsError } = await supabase
+                .from('game_sessions')
+                .select('*')
+                .eq('user_id', this.currentUser.id)
+                .order('timestamp', { ascending: true });
+
+            if (sessionsError) throw sessionsError;
+
+            // Load goals
+            const { data: goalsData, error: goalsError } = await supabase
+                .from('user_goals')
+                .select('*')
+                .eq('user_id', this.currentUser.id)
+                .single();
+
+            // Load milestones
+            const { data: milestones, error: milestonesError } = await supabase
+                .from('user_milestones')
+                .select('*')
+                .eq('user_id', this.currentUser.id);
+
+            if (milestonesError) throw milestonesError;
+
+            // Process sessions to build gameProgress
+            const gameProgress = {};
+            sessions.forEach(session => {
+                if (!gameProgress[session.game_name]) {
+                    gameProgress[session.game_name] = {
+                        firstPlayed: session.timestamp,
+                        sessionsCount: 0,
+                        totalDuration: 0,
+                        highScore: 0,
+                        currentDifficulty: 'easy',
+                        completionRate: 0,
+                        averageScore: 0
+                    };
+                }
+
+                const progress = gameProgress[session.game_name];
+                progress.sessionsCount++;
+                progress.totalDuration += session.duration;
+                progress.highScore = Math.max(progress.highScore, session.score || 0);
+                progress.lastPlayed = session.timestamp;
+            });
+
+            // Calculate averages and completion rates
+            Object.keys(gameProgress).forEach(gameName => {
+                const gameSessions = sessions.filter(s => s.game_name === gameName);
+                const scores = gameSessions.filter(s => s.score).map(s => s.score);
+                const completed = gameSessions.filter(s => s.completed);
+
+                gameProgress[gameName].averageScore = scores.length > 0
+                    ? scores.reduce((a, b) => a + b, 0) / scores.length
+                    : 0;
+                gameProgress[gameName].completionRate = (completed.length / gameSessions.length) * 100;
+            });
+
+            this.data = {
+                sessions: sessions.map(s => ({
+                    id: s.id,
+                    timestamp: s.timestamp,
+                    gameName: s.game_name,
+                    gameCategory: s.game_category,
+                    duration: s.duration,
+                    difficulty: s.difficulty,
+                    score: s.score,
+                    completed: s.completed,
+                    metrics: s.metrics || {},
+                    physicsData: s.physics_data,
+                    symptoms: s.symptoms
+                })),
+                gameProgress,
+                startDate: sessions[0]?.timestamp || new Date().toISOString(),
+                lastActive: sessions[sessions.length - 1]?.timestamp || null,
+                milestones: milestones.map(m => ({
+                    id: m.milestone_id,
+                    name: m.name,
+                    description: m.description,
+                    earnedAt: m.earned_at
+                }))
+            };
+
+            this.goals = goalsData ? {
+                daily: goalsData.daily_goal || { target: 3, unit: 'games' },
+                weekly: goalsData.weekly_goal || { target: 15, unit: 'games' },
+                customGoals: goalsData.custom_goals || []
+            } : {
+                daily: { target: 3, unit: 'games' },
+                weekly: { target: 15, unit: 'games' },
+                customGoals: []
+            };
+
+        } catch (error) {
+            console.error('Error loading from Supabase:', error);
+            // Fallback to localStorage
+            this.data = this.loadDataLocal();
+            this.goals = this.loadGoalsLocal();
+        }
+    }
+
+    /**
+     * Save data (automatically chooses Supabase or localStorage)
+     */
+    async saveData() {
+        if (this.useSupabase && this.currentUser) {
+            // Supabase saves happen per-session, not bulk
+            return;
+        } else {
+            this.saveDataLocal();
+        }
+    }
+
+    /**
+     * Save goals (automatically chooses Supabase or localStorage)
+     */
+    async saveGoals() {
+        if (this.useSupabase && this.currentUser) {
+            await this.saveGoalsToSupabase();
+        } else {
+            this.saveGoalsLocal();
+        }
+    }
+
+    /**
+     * Save goals to Supabase
+     */
+    async saveGoalsToSupabase() {
+        try {
+            const supabase = getSupabaseClient();
+
+            const { error } = await supabase
+                .from('user_goals')
+                .upsert({
+                    user_id: this.currentUser.id,
+                    daily_goal: this.goals.daily,
+                    weekly_goal: this.goals.weekly,
+                    custom_goals: this.goals.customGoals,
+                    updated_at: new Date().toISOString()
+                });
+
+            if (error) throw error;
+        } catch (error) {
+            console.error('Error saving goals to Supabase:', error);
+        }
     }
 
     /**
      * Record a game session
      * @param {Object} session - Session data
      */
-    recordSession(session) {
+    async recordSession(session) {
+        // Ensure initialized
+        if (!this.initialized) {
+            await this.initialize();
+        }
+
         const sessionData = {
             id: Date.now(),
             timestamp: new Date().toISOString(),
@@ -76,6 +283,12 @@ class ProgressionTracker {
             symptoms: session.symptoms || null // Any symptoms during play
         };
 
+        // Save to Supabase if authenticated
+        if (this.useSupabase && this.currentUser) {
+            await this.recordSessionToSupabase(sessionData);
+        }
+
+        // Also update local data cache
         this.data.sessions.push(sessionData);
         this.data.lastActive = sessionData.timestamp;
 
@@ -112,16 +325,51 @@ class ProgressionTracker {
         gameProgress.completionRate = (completedSessions.length / gameSessions.length) * 100;
 
         // Check for milestones
-        this.checkMilestones(sessionData);
+        await this.checkMilestones(sessionData);
 
-        this.saveData();
+        // Save to localStorage if not using Supabase
+        if (!this.useSupabase) {
+            this.saveDataLocal();
+        }
+
         return sessionData;
+    }
+
+    /**
+     * Save session to Supabase
+     */
+    async recordSessionToSupabase(sessionData) {
+        try {
+            const supabase = getSupabaseClient();
+
+            const { error } = await supabase
+                .from('game_sessions')
+                .insert([{
+                    user_id: this.currentUser.id,
+                    timestamp: sessionData.timestamp,
+                    game_name: sessionData.gameName,
+                    game_category: sessionData.gameCategory,
+                    duration: sessionData.duration,
+                    difficulty: sessionData.difficulty,
+                    score: sessionData.score,
+                    completed: sessionData.completed,
+                    metrics: sessionData.metrics,
+                    physics_data: sessionData.physicsData,
+                    symptoms: sessionData.symptoms
+                }]);
+
+            if (error) throw error;
+        } catch (error) {
+            console.error('Error saving session to Supabase:', error);
+            // Fall back to localStorage
+            this.saveDataLocal();
+        }
     }
 
     /**
      * Check and award milestones
      */
-    checkMilestones(session) {
+    async checkMilestones(session) {
         const milestones = [
             {
                 id: 'first_session',
@@ -173,17 +421,47 @@ class ProgressionTracker {
             }
         ];
 
-        milestones.forEach(milestone => {
+        for (const milestone of milestones) {
             const alreadyEarned = this.data.milestones.some(m => m.id === milestone.id);
             if (!alreadyEarned && milestone.condition()) {
-                this.data.milestones.push({
+                const milestoneData = {
                     id: milestone.id,
                     name: milestone.name,
                     description: milestone.description,
                     earnedAt: new Date().toISOString()
-                });
+                };
+
+                this.data.milestones.push(milestoneData);
+
+                // Save to Supabase if authenticated
+                if (this.useSupabase && this.currentUser) {
+                    await this.saveMilestoneToSupabase(milestoneData);
+                }
             }
-        });
+        }
+    }
+
+    /**
+     * Save milestone to Supabase
+     */
+    async saveMilestoneToSupabase(milestone) {
+        try {
+            const supabase = getSupabaseClient();
+
+            const { error } = await supabase
+                .from('user_milestones')
+                .insert([{
+                    user_id: this.currentUser.id,
+                    milestone_id: milestone.id,
+                    name: milestone.name,
+                    description: milestone.description,
+                    earned_at: milestone.earnedAt
+                }]);
+
+            if (error) throw error;
+        } catch (error) {
+            console.error('Error saving milestone to Supabase:', error);
+        }
     }
 
     /**
