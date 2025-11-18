@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vestibular-Ocular Motor Screening (VOMS)</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: Arial, sans-serif; }
+        canvas { display: block; }
+
+        #ui-overlay {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            color: white;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        .instruction-panel {
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            max-width: 700px;
+            margin: 0 auto;
+            pointer-events: all;
+        }
+
+        .test-info {
+            background: rgba(102, 126, 234, 0.9);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+
+        .symptom-tracker {
+            background: #333;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        .symptom-item {
+            margin: 15px 0;
+        }
+
+        .symptom-label {
+            display: block;
+            margin-bottom: 8px;
+            color: #aaa;
+        }
+
+        .rating-scale {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .rating-btn {
+            width: 50px;
+            height: 50px;
+            border: 2px solid #666;
+            background: #222;
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+
+        .rating-btn:hover {
+            background: #444;
+            border-color: #888;
+        }
+
+        .rating-btn.selected {
+            background: #667eea;
+            border-color: #667eea;
+            transform: scale(1.1);
+        }
+
+        .vr-button {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 15px 30px;
+            font-size: 18px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            z-index: 101;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            margin: 5px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .btn:hover { background: #764ba2; }
+
+        .btn-next {
+            background: #00ff00;
+            color: black;
+            font-weight: bold;
+            font-size: 18px;
+            padding: 15px 40px;
+        }
+
+        .btn-disabled {
+            background: #555;
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #555;
+        }
+
+        th {
+            background: #667eea;
+            color: white;
+        }
+
+        .warning-box {
+            background: #fff3cd;
+            color: #856404;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+
+        .score-mild { color: #00ff00; }
+        .score-moderate { color: #ffaa00; }
+        .score-severe { color: #ff6b6b; }
+    </style>
+</head>
+<body>
+    <div id="ui-overlay"></div>
+
+    <script src="../games/webxr-utils.js"></script>
+    <script>
+        class VOMSTest {
+            constructor() {
+                this.tests = [
+                    {
+                        name: 'Smooth Pursuit - Horizontal',
+                        description: 'Follow the moving target smoothly with your eyes, keeping your head still.',
+                        duration: 30,
+                        type: 'smoothPursuit',
+                        direction: 'horizontal'
+                    },
+                    {
+                        name: 'Smooth Pursuit - Vertical',
+                        description: 'Follow the moving target up and down with your eyes only.',
+                        duration: 30,
+                        type: 'smoothPursuit',
+                        direction: 'vertical'
+                    },
+                    {
+                        name: 'Saccades - Horizontal',
+                        description: 'Look quickly between the two targets. Move only your eyes.',
+                        duration: 30,
+                        type: 'saccades',
+                        direction: 'horizontal'
+                    },
+                    {
+                        name: 'Saccades - Vertical',
+                        description: 'Look quickly between the upper and lower targets.',
+                        duration: 30,
+                        type: 'saccades',
+                        direction: 'vertical'
+                    },
+                    {
+                        name: 'Convergence',
+                        description: 'Focus on the target as it moves toward your nose.',
+                        duration: 20,
+                        type: 'convergence',
+                        direction: 'forward'
+                    },
+                    {
+                        name: 'VOR - Horizontal',
+                        description: 'Keep eyes on target while turning head left and right.',
+                        duration: 30,
+                        type: 'vor',
+                        direction: 'horizontal'
+                    },
+                    {
+                        name: 'VOR - Vertical',
+                        description: 'Keep eyes on target while nodding head up and down.',
+                        duration: 30,
+                        type: 'vor',
+                        direction: 'vertical'
+                    }
+                ];
+
+                this.symptoms = ['Headache', 'Dizziness', 'Nausea', 'Fogginess'];
+                this.currentTestIndex = -1;
+                this.baselineSymptoms = {};
+                this.testResults = [];
+                this.targetSphere = null;
+                this.targetSphere2 = null;
+                this.sessionStartTime = new Date();
+                this.testStartTime = 0;
+                this.isTestRunning = false;
+            }
+
+            start() {
+                this.showBaselineSymptoms();
+            }
+
+            showBaselineSymptoms() {
+                const overlay = document.getElementById('ui-overlay');
+
+                overlay.innerHTML = `
+                    <div class="instruction-panel">
+                        <h1>VOMS - Baseline Symptoms</h1>
+                        <div class="test-info">
+                            <p>Before starting the eye movement tests, rate your current symptoms:</p>
+                        </div>
+
+                        <div class="symptom-tracker">
+                            ${this.symptoms.map(symptom => `
+                                <div class="symptom-item">
+                                    <span class="symptom-label">${symptom}</span>
+                                    <div class="rating-scale" id="baseline-${symptom}">
+                                        ${[0,1,2,3,4,5,6,7,8,9,10].map(val => `
+                                            <button class="rating-btn" onclick="vomsTest.setBaselineRating('${symptom}', ${val})">${val}</button>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+
+                        <p style="text-align: center; color: #aaa;">0 = None, 10 = Severe</p>
+
+                        <div style="text-align: center; margin-top: 20px;">
+                            <button class="btn btn-next" id="baseline-next" onclick="vomsTest.startTests()">Continue to Tests</button>
+                            <button class="btn" onclick="window.location.href='../assessment.html'">Back</button>
+                        </div>
+                    </div>
+                `;
+            }
+
+            setBaselineRating(symptom, value) {
+                this.baselineSymptoms[symptom] = value;
+
+                // Update UI to show selection
+                const container = document.getElementById(`baseline-${symptom}`);
+                const buttons = container.querySelectorAll('.rating-btn');
+                buttons.forEach((btn, idx) => {
+                    if (idx === value) {
+                        btn.classList.add('selected');
+                    } else {
+                        btn.classList.remove('selected');
+                    }
+                });
+
+                // Enable next button if all symptoms rated
+                if (Object.keys(this.baselineSymptoms).length === this.symptoms.length) {
+                    document.getElementById('baseline-next').classList.remove('btn-disabled');
+                }
+            }
+
+            startTests() {
+                if (Object.keys(this.baselineSymptoms).length !== this.symptoms.length) {
+                    alert('Please rate all baseline symptoms before continuing.');
+                    return;
+                }
+
+                this.currentTestIndex = 0;
+                this.showTestInstructions();
+            }
+
+            showTestInstructions() {
+                const test = this.tests[this.currentTestIndex];
+                const overlay = document.getElementById('ui-overlay');
+
+                overlay.innerHTML = `
+                    <div class="instruction-panel">
+                        <h2>Test ${this.currentTestIndex + 1} of ${this.tests.length}</h2>
+                        <h1>${test.name}</h1>
+
+                        <div class="test-info">
+                            <p><strong>Instructions:</strong></p>
+                            <p>${test.description}</p>
+                            <p><strong>Duration:</strong> ${test.duration} seconds</p>
+                        </div>
+
+                        <div class="warning-box">
+                            <p><strong>Important:</strong> If symptoms worsen significantly, you can stop the test at any time by pressing ESC or clicking "Stop Test".</p>
+                        </div>
+
+                        <div style="text-align: center; margin-top: 20px;">
+                            <button class="btn btn-next" onclick="vomsTest.runTest()">Start Test</button>
+                            <button class="btn" onclick="vomsTest.skipTest()">Skip This Test</button>
+                        </div>
+                    </div>
+                `;
+            }
+
+            runTest() {
+                const test = this.tests[this.currentTestIndex];
+                this.isTestRunning = true;
+                this.testStartTime = Date.now();
+
+                // Clear old targets
+                if (this.targetSphere) scene.remove(this.targetSphere);
+                if (this.targetSphere2) scene.remove(this.targetSphere2);
+
+                // Create visual targets based on test type
+                if (test.type === 'smoothPursuit') {
+                    this.targetSphere = WebXRUtils.createSphere(0.08, 0x00ff00, {x: 0, y: 1.6, z: -2});
+                    scene.add(this.targetSphere);
+                } else if (test.type === 'saccades') {
+                    this.targetSphere = WebXRUtils.createSphere(0.08, 0x00ff00, {x: -0.5, y: 1.6, z: -2});
+                    this.targetSphere2 = WebXRUtils.createSphere(0.08, 0xff0000, {x: 0.5, y: 1.6, z: -2});
+                    scene.add(this.targetSphere);
+                    scene.add(this.targetSphere2);
+                } else if (test.type === 'convergence') {
+                    this.targetSphere = WebXRUtils.createSphere(0.05, 0x00ff00, {x: 0, y: 1.6, z: -0.5});
+                    scene.add(this.targetSphere);
+                } else if (test.type === 'vor') {
+                    this.targetSphere = WebXRUtils.createSphere(0.08, 0x00ff00, {x: 0, y: 1.6, z: -2});
+                    scene.add(this.targetSphere);
+                }
+
+                this.animateTest();
+            }
+
+            animateTest() {
+                if (!this.isTestRunning) return;
+
+                const test = this.tests[this.currentTestIndex];
+                const elapsed = (Date.now() - this.testStartTime) / 1000;
+                const remaining = test.duration - elapsed;
+
+                if (remaining <= 0) {
+                    this.endTest();
+                    return;
+                }
+
+                // Animate targets based on test type
+                const time = Date.now() / 1000;
+
+                if (test.type === 'smoothPursuit') {
+                    if (test.direction === 'horizontal') {
+                        this.targetSphere.position.x = Math.sin(time) * 0.6;
+                    } else {
+                        this.targetSphere.position.y = 1.6 + Math.sin(time) * 0.4;
+                    }
+                } else if (test.type === 'saccades') {
+                    // Targets stay in place for saccades
+                    if (test.direction === 'vertical') {
+                        this.targetSphere.position.set(0, 1.9, -2);
+                        this.targetSphere2.position.set(0, 1.3, -2);
+                    }
+                } else if (test.type === 'convergence') {
+                    const progress = (time % 4) / 4; // 4 second cycle
+                    this.targetSphere.position.z = -0.5 + (progress * -1.5);
+                }
+
+                // Update UI
+                const overlay = document.getElementById('ui-overlay');
+                overlay.innerHTML = `
+                    <div class="instruction-panel">
+                        <h2>${test.name}</h2>
+                        <div style="font-size: 3rem; text-align: center; color: #ffaa00; font-weight: bold;">
+                            ${remaining.toFixed(1)}s
+                        </div>
+                        <p style="text-align: center; font-size: 1.2rem; color: #aaa;">
+                            ${test.description}
+                        </p>
+                        <div style="text-align: center; margin-top: 20px;">
+                            <button class="btn" style="background: #ff6b6b;" onclick="vomsTest.stopTest()">Stop Test</button>
+                        </div>
+                    </div>
+                `;
+
+                requestAnimationFrame(() => this.animateTest());
+            }
+
+            stopTest() {
+                this.isTestRunning = false;
+                this.endTest();
+            }
+
+            endTest() {
+                this.isTestRunning = false;
+
+                // Remove targets
+                if (this.targetSphere) scene.remove(this.targetSphere);
+                if (this.targetSphere2) scene.remove(this.targetSphere2);
+
+                this.showPostTestSymptoms();
+            }
+
+            showPostTestSymptoms() {
+                const test = this.tests[this.currentTestIndex];
+                const overlay = document.getElementById('ui-overlay');
+
+                overlay.innerHTML = `
+                    <div class="instruction-panel">
+                        <h2>${test.name} - Complete</h2>
+                        <div class="test-info">
+                            <p>Rate your symptoms NOW (immediately after the test):</p>
+                        </div>
+
+                        <div class="symptom-tracker">
+                            ${this.symptoms.map(symptom => `
+                                <div class="symptom-item">
+                                    <span class="symptom-label">${symptom} (Baseline: ${this.baselineSymptoms[symptom]})</span>
+                                    <div class="rating-scale" id="post-${symptom}">
+                                        ${[0,1,2,3,4,5,6,7,8,9,10].map(val => `
+                                            <button class="rating-btn ${val === this.baselineSymptoms[symptom] ? 'selected' : ''}"
+                                                    onclick="vomsTest.setPostTestRating('${symptom}', ${val})">${val}</button>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+
+                        <p style="text-align: center; color: #aaa;">0 = None, 10 = Severe</p>
+
+                        <div style="text-align: center; margin-top: 20px;">
+                            <button class="btn btn-next" id="post-next" onclick="vomsTest.nextTest()">Continue</button>
+                        </div>
+                    </div>
+                `;
+
+                // Initialize current test result
+                this.testResults[this.currentTestIndex] = {
+                    testName: test.name,
+                    postSymptoms: {}
+                };
+            }
+
+            setPostTestRating(symptom, value) {
+                this.testResults[this.currentTestIndex].postSymptoms[symptom] = value;
+
+                // Update UI
+                const container = document.getElementById(`post-${symptom}`);
+                const buttons = container.querySelectorAll('.rating-btn');
+                buttons.forEach((btn, idx) => {
+                    if (idx === value) {
+                        btn.classList.add('selected');
+                    } else {
+                        btn.classList.remove('selected');
+                    }
+                });
+            }
+
+            skipTest() {
+                this.testResults[this.currentTestIndex] = {
+                    testName: this.tests[this.currentTestIndex].name,
+                    skipped: true
+                };
+                this.nextTest();
+            }
+
+            nextTest() {
+                this.currentTestIndex++;
+
+                if (this.currentTestIndex < this.tests.length) {
+                    this.showTestInstructions();
+                } else {
+                    this.showResults();
+                }
+            }
+
+            calculateSymptomProvocation() {
+                const provocation = {};
+
+                this.testResults.forEach((result, idx) => {
+                    if (result.skipped) return;
+
+                    let maxChange = 0;
+                    this.symptoms.forEach(symptom => {
+                        const baseline = this.baselineSymptoms[symptom];
+                        const post = result.postSymptoms[symptom] || baseline;
+                        const change = post - baseline;
+                        maxChange = Math.max(maxChange, change);
+                    });
+
+                    provocation[result.testName] = maxChange;
+                });
+
+                return provocation;
+            }
+
+            showResults() {
+                const provocation = this.calculateSymptomProvocation();
+                const totalProvocation = Object.values(provocation).reduce((a, b) => a + b, 0);
+                const avgProvocation = (totalProvocation / Object.keys(provocation).length).toFixed(1);
+
+                const interpretation = this.getInterpretation(parseFloat(avgProvocation));
+
+                // Save results
+                this.saveResults(provocation, interpretation);
+
+                const overlay = document.getElementById('ui-overlay');
+
+                let tableRows = '';
+                this.testResults.forEach((result, idx) => {
+                    if (result.skipped) {
+                        tableRows += `<tr><td>${result.testName}</td><td>Skipped</td></tr>`;
+                    } else {
+                        const prov = provocation[result.testName];
+                        const scoreClass = prov === 0 ? 'score-mild' : prov <= 2 ? 'score-moderate' : 'score-severe';
+                        tableRows += `<tr><td>${result.testName}</td><td class="${scoreClass}">+${prov}</td></tr>`;
+                    }
+                });
+
+                overlay.innerHTML = `
+                    <div class="instruction-panel">
+                        <h1>VOMS Assessment Results</h1>
+
+                        <div style="text-align: center; margin: 20px 0;">
+                            <div style="font-size: 2.5rem; font-weight: bold; color: ${interpretation.color};">
+                                Average Provocation: +${avgProvocation}
+                            </div>
+                            <p style="color: #aaa; margin-top: 10px;">
+                                ${interpretation.description}
+                            </p>
+                        </div>
+
+                        <h3>Symptom Provocation by Test</h3>
+                        <p style="color: #aaa; font-size: 0.9rem;">Shows maximum symptom increase from baseline</p>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Test</th>
+                                    <th>Max Symptom Change</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${tableRows}
+                            </tbody>
+                        </table>
+
+                        <div class="warning-box">
+                            <h4>Clinical Interpretation:</h4>
+                            <ul>
+                                <li>0-1 point change: Minimal/normal response</li>
+                                <li>2-4 points: Mild symptom provocation (possible concern)</li>
+                                <li>5+ points: Significant provocation (warrants medical evaluation)</li>
+                            </ul>
+                            <p><strong>Note:</strong> Consistent symptom provocation across multiple tests is more significant than isolated responses.</p>
+                        </div>
+
+                        <div style="text-align: center; margin-top: 20px;">
+                            <button class="btn" onclick="window.location.href='results.html'">View All Results</button>
+                            <button class="btn" onclick="window.location.href='../assessment.html'">Back to Assessment</button>
+                            <button class="btn" onclick="location.reload()">Retake Test</button>
+                        </div>
+                    </div>
+                `;
+            }
+
+            getInterpretation(avgProvocation) {
+                if (avgProvocation <= 1) return {
+                    rating: 'Normal',
+                    color: '#00ff00',
+                    description: 'Minimal symptom provocation - normal response'
+                };
+                if (avgProvocation <= 3) return {
+                    rating: 'Mild',
+                    color: '#ffaa00',
+                    description: 'Mild symptom provocation - monitor closely'
+                };
+                return {
+                    rating: 'Significant',
+                    color: '#ff6b6b',
+                    description: 'Significant symptom provocation - medical evaluation recommended'
+                };
+            }
+
+            saveResults(provocation, interpretation) {
+                const results = {
+                    testType: 'VOMS',
+                    timestamp: this.sessionStartTime.toISOString(),
+                    baselineSymptoms: this.baselineSymptoms,
+                    provocationScores: provocation,
+                    averageProvocation: Object.values(provocation).reduce((a, b) => a + b, 0) / Object.keys(provocation).length,
+                    interpretation: interpretation.rating,
+                    detailedResults: this.testResults
+                };
+
+                let allResults = JSON.parse(localStorage.getItem('concussionAssessments') || '[]');
+                allResults.push(results);
+                localStorage.setItem('concussionAssessments', JSON.stringify(allResults));
+            }
+        }
+
+        // Initialize Three.js scene
+        let scene, camera, renderer, vomsTest;
+
+        function init() {
+            scene = WebXRUtils.createScene();
+            camera = WebXRUtils.createCamera();
+            renderer = WebXRUtils.createRenderer();
+
+            WebXRUtils.addLighting(scene);
+            WebXRUtils.createFloor(scene, 10, 0x202020);
+
+            WebXRUtils.createVRButton(renderer);
+
+            vomsTest = new VOMSTest();
+            vomsTest.showBaselineSymptoms();
+
+            WebXRUtils.handleWindowResize(camera, renderer);
+
+            renderer.setAnimationLoop(render);
+        }
+
+        function render() {
+            renderer.render(scene, camera);
+        }
+
+        init();
+    </script>
+</body>
+</html>

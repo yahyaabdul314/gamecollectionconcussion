@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reaction Time Assessment</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: Arial, sans-serif; }
+        canvas { display: block; }
+
+        #ui-overlay {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            color: white;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        .instruction-panel {
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            max-width: 600px;
+            margin: 0 auto;
+            pointer-events: all;
+        }
+
+        .test-info {
+            background: rgba(102, 126, 234, 0.9);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+
+        .vr-button {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 15px 30px;
+            font-size: 18px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            z-index: 101;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            margin: 5px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .btn:hover { background: #764ba2; }
+
+        .btn-start {
+            background: #00ff00;
+            color: black;
+            font-weight: bold;
+            font-size: 18px;
+            padding: 15px 40px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 30px;
+            background: #333;
+            border-radius: 15px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #00ff00);
+            transition: width 0.3s ease;
+        }
+
+        .stat-box {
+            display: inline-block;
+            background: #333;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px;
+            min-width: 150px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #00ff00;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: #aaa;
+            margin-top: 5px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #555;
+        }
+
+        th {
+            background: #667eea;
+            color: white;
+        }
+
+        .interpretation {
+            background: #d1ecf1;
+            color: #0c5460;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="ui-overlay"></div>
+
+    <script src="../games/webxr-utils.js"></script>
+    <script>
+        class ReactionTimeTest {
+            constructor() {
+                this.trials = 20;
+                this.currentTrial = 0;
+                this.reactionTimes = [];
+                this.testType = 'simple'; // 'simple' or 'choice'
+                this.isWaiting = false;
+                this.stimulusTime = 0;
+                this.responseSphere = null;
+                this.sessionStartTime = new Date();
+                this.falseStarts = 0;
+            }
+
+            start(type = 'simple') {
+                this.testType = type;
+                this.currentTrial = 0;
+                this.reactionTimes = [];
+                this.falseStarts = 0;
+                this.showCountdown();
+            }
+
+            showCountdown() {
+                let countdown = 3;
+                const countdownInterval = setInterval(() => {
+                    if (countdown > 0) {
+                        this.updateUI('countdown', countdown);
+                        countdown--;
+                    } else {
+                        clearInterval(countdownInterval);
+                        this.nextTrial();
+                    }
+                }, 1000);
+            }
+
+            nextTrial() {
+                if (this.currentTrial >= this.trials) {
+                    this.showResults();
+                    return;
+                }
+
+                this.currentTrial++;
+                this.updateUI('waiting');
+
+                // Remove old stimulus if exists
+                if (this.responseSphere) {
+                    scene.remove(this.responseSphere);
+                    this.responseSphere = null;
+                }
+
+                // Random delay before showing stimulus (1-4 seconds)
+                const delay = 1000 + Math.random() * 3000;
+
+                this.isWaiting = true;
+
+                setTimeout(() => {
+                    if (!this.isWaiting) return; // User responded too early
+                    this.showStimulus();
+                }, delay);
+            }
+
+            showStimulus() {
+                this.stimulusTime = performance.now();
+                this.isWaiting = false;
+
+                // Create visual stimulus
+                const position = WebXRUtils.randomPosition(1.5, 1.6);
+                const color = this.testType === 'choice' ?
+                    (Math.random() > 0.5 ? 0x00ff00 : 0xff0000) :
+                    0x00ff00;
+
+                this.responseSphere = WebXRUtils.createSphere(0.15, color, position);
+                scene.add(this.responseSphere);
+
+                // Play audio stimulus
+                WebXRUtils.playSound(440, 0.2, 'sine');
+
+                this.updateUI('respond');
+
+                // Add click handler
+                document.addEventListener('click', this.handleResponse.bind(this), { once: true });
+                document.addEventListener('keydown', this.handleResponse.bind(this), { once: true });
+
+                // Timeout after 2 seconds
+                this.responseTimeout = setTimeout(() => {
+                    this.recordResponse(-1); // Missed response
+                }, 2000);
+            }
+
+            handleResponse(event) {
+                clearTimeout(this.responseTimeout);
+
+                if (this.isWaiting) {
+                    // False start (responded before stimulus)
+                    this.falseStarts++;
+                    this.isWaiting = false;
+                    this.updateUI('falseStart');
+                    setTimeout(() => this.nextTrial(), 1500);
+                    return;
+                }
+
+                const reactionTime = performance.now() - this.stimulusTime;
+
+                // For choice reaction test, check if correct key was pressed
+                if (this.testType === 'choice') {
+                    const sphereColor = this.responseSphere.material.color.getHex();
+                    const isGreen = sphereColor === 0x00ff00;
+                    const pressedCorrectKey = (isGreen && event.key === 'g') ||
+                                             (!isGreen && event.key === 'r');
+
+                    if (event.key && !pressedCorrectKey) {
+                        this.recordResponse(-2); // Wrong key
+                        return;
+                    }
+                }
+
+                this.recordResponse(reactionTime);
+            }
+
+            recordResponse(reactionTime) {
+                if (reactionTime > 0) {
+                    this.reactionTimes.push(reactionTime);
+                } else if (reactionTime === -1) {
+                    // Timeout - record as miss
+                    this.reactionTimes.push(null);
+                } else if (reactionTime === -2) {
+                    // Wrong key
+                    this.reactionTimes.push(null);
+                }
+
+                // Remove stimulus
+                if (this.responseSphere) {
+                    scene.remove(this.responseSphere);
+                    this.responseSphere = null;
+                }
+
+                // Short delay before next trial
+                setTimeout(() => this.nextTrial(), 500);
+            }
+
+            calculateStats() {
+                const validTimes = this.reactionTimes.filter(t => t !== null && t > 0);
+                const mean = validTimes.reduce((a, b) => a + b, 0) / validTimes.length;
+                const sortedTimes = [...validTimes].sort((a, b) => a - b);
+                const median = sortedTimes[Math.floor(sortedTimes.length / 2)];
+
+                const variance = validTimes.reduce((sum, time) => sum + Math.pow(time - mean, 2), 0) / validTimes.length;
+                const stdDev = Math.sqrt(variance);
+
+                const misses = this.reactionTimes.filter(t => t === null).length;
+                const fastest = Math.min(...validTimes);
+                const slowest = Math.max(...validTimes);
+
+                return {
+                    mean: mean.toFixed(0),
+                    median: median.toFixed(0),
+                    stdDev: stdDev.toFixed(0),
+                    fastest: fastest.toFixed(0),
+                    slowest: slowest.toFixed(0),
+                    misses,
+                    falseStarts: this.falseStarts,
+                    validResponses: validTimes.length,
+                    consistency: (stdDev / mean * 100).toFixed(1)
+                };
+            }
+
+            getInterpretation(mean) {
+                if (mean < 200) return { rating: 'Excellent', color: '#00ff00', description: 'Well above average processing speed' };
+                if (mean < 250) return { rating: 'Good', color: '#90ee90', description: 'Above average processing speed' };
+                if (mean < 300) return { rating: 'Average', color: '#ffaa00', description: 'Normal processing speed' };
+                if (mean < 400) return { rating: 'Below Average', color: '#ff6b6b', description: 'Slower than typical - may indicate impairment' };
+                return { rating: 'Poor', color: '#ff0000', description: 'Significantly impaired - medical evaluation recommended' };
+            }
+
+            updateUI(mode, data) {
+                const overlay = document.getElementById('ui-overlay');
+
+                if (mode === 'intro') {
+                    overlay.innerHTML = `
+                        <div class="instruction-panel">
+                            <h1>Reaction Time Assessment</h1>
+                            <div class="test-info">
+                                <h3>Test Overview</h3>
+                                <p>This test measures how quickly you can respond to visual and auditory stimuli.</p>
+                                <p><strong>Total Trials:</strong> 20</p>
+                            </div>
+
+                            <h3>Instructions</h3>
+                            <ul>
+                                <li>Watch for a sphere to appear in your view</li>
+                                <li>Click or press any key as quickly as possible when you see it</li>
+                                <li>Do NOT respond before the sphere appears (false start)</li>
+                                <li>Try to be both fast and accurate</li>
+                            </ul>
+
+                            <div style="text-align: center; margin-top: 20px;">
+                                <button class="btn btn-start" onclick="reactionTest.start('simple')">Start Simple Test</button>
+                                <button class="btn btn-start" style="background: #ffaa00;" onclick="reactionTest.start('choice')">Start Choice Test</button>
+                                <br><br>
+                                <button class="btn" onclick="window.location.href='../assessment.html'">Back to Assessment</button>
+                            </div>
+
+                            <div class="test-info" style="margin-top: 20px;">
+                                <h4>Test Types:</h4>
+                                <p><strong>Simple:</strong> Respond as fast as possible when stimulus appears</p>
+                                <p><strong>Choice:</strong> Press 'G' for green spheres, 'R' for red spheres</p>
+                            </div>
+                        </div>
+                    `;
+                } else if (mode === 'countdown') {
+                    overlay.innerHTML = `
+                        <div class="instruction-panel">
+                            <div class="test-info">
+                                <h2>Get Ready...</h2>
+                            </div>
+                            <div style="font-size: 4rem; text-align: center; font-weight: bold;">
+                                ${data}
+                            </div>
+                        </div>
+                    `;
+                } else if (mode === 'waiting') {
+                    const progress = ((this.currentTrial - 1) / this.trials) * 100;
+                    overlay.innerHTML = `
+                        <div class="instruction-panel">
+                            <div class="test-info">
+                                <h3>Trial ${this.currentTrial} of ${this.trials}</h3>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: ${progress}%"></div>
+                            </div>
+                            <p style="text-align: center; font-size: 1.5rem; color: #ffaa00;">
+                                Wait for the sphere...
+                            </p>
+                        </div>
+                    `;
+                } else if (mode === 'respond') {
+                    overlay.innerHTML = `
+                        <div class="instruction-panel">
+                            <div class="test-info">
+                                <h3>Trial ${this.currentTrial} of ${this.trials}</h3>
+                            </div>
+                            <p style="text-align: center; font-size: 2rem; color: #00ff00; font-weight: bold;">
+                                ${this.testType === 'choice' ? 'Press G or R!' : 'RESPOND NOW!'}
+                            </p>
+                        </div>
+                    `;
+                } else if (mode === 'falseStart') {
+                    overlay.innerHTML = `
+                        <div class="instruction-panel">
+                            <p style="text-align: center; font-size: 2rem; color: #ff0000; font-weight: bold;">
+                                FALSE START!
+                            </p>
+                            <p style="text-align: center; color: #ffaa00;">
+                                Wait for the sphere to appear before responding
+                            </p>
+                        </div>
+                    `;
+                }
+            }
+
+            showResults() {
+                const stats = this.calculateStats();
+                const interpretation = this.getInterpretation(parseFloat(stats.mean));
+                const overlay = document.getElementById('ui-overlay');
+
+                // Save results
+                this.saveResults(stats, interpretation);
+
+                overlay.innerHTML = `
+                    <div class="instruction-panel">
+                        <h1>Reaction Time Results</h1>
+
+                        <div style="text-align: center; margin: 20px 0;">
+                            <div class="stat-box">
+                                <div class="stat-value" style="color: ${interpretation.color}">${stats.mean} ms</div>
+                                <div class="stat-label">Average Reaction Time</div>
+                            </div>
+                            <div class="stat-box">
+                                <div class="stat-value">${stats.median} ms</div>
+                                <div class="stat-label">Median Time</div>
+                            </div>
+                            <div class="stat-box">
+                                <div class="stat-value">${stats.consistency}%</div>
+                                <div class="stat-label">Variability (CV)</div>
+                            </div>
+                        </div>
+
+                        <div class="interpretation">
+                            <h3>${interpretation.rating}</h3>
+                            <p>${interpretation.description}</p>
+                            <p style="margin-top: 10px; font-size: 0.9rem;">
+                                <strong>Reference:</strong> Average adult reaction time is 200-300ms.
+                                Concussion may increase reaction time by 20-50ms or more.
+                            </p>
+                        </div>
+
+                        <h3>Detailed Statistics</h3>
+                        <table>
+                            <tr><td>Valid Responses</td><td>${stats.validResponses}/${this.trials}</td></tr>
+                            <tr><td>Fastest Response</td><td>${stats.fastest} ms</td></tr>
+                            <tr><td>Slowest Response</td><td>${stats.slowest} ms</td></tr>
+                            <tr><td>Standard Deviation</td><td>${stats.stdDev} ms</td></tr>
+                            <tr><td>Missed Responses</td><td>${stats.misses}</td></tr>
+                            <tr><td>False Starts</td><td>${stats.falseStarts}</td></tr>
+                        </table>
+
+                        <div style="text-align: center; margin-top: 20px;">
+                            <button class="btn" onclick="window.location.href='results.html'">View All Results</button>
+                            <button class="btn" onclick="window.location.href='../assessment.html'">Back to Assessment</button>
+                            <button class="btn" onclick="location.reload()">Retake Test</button>
+                        </div>
+                    </div>
+                `;
+            }
+
+            saveResults(stats, interpretation) {
+                const results = {
+                    testType: 'ReactionTime',
+                    subType: this.testType,
+                    timestamp: this.sessionStartTime.toISOString(),
+                    meanRT: parseFloat(stats.mean),
+                    medianRT: parseFloat(stats.median),
+                    stdDev: parseFloat(stats.stdDev),
+                    fastest: parseFloat(stats.fastest),
+                    slowest: parseFloat(stats.slowest),
+                    misses: stats.misses,
+                    falseStarts: stats.falseStarts,
+                    interpretation: interpretation.rating,
+                    allTrials: this.reactionTimes
+                };
+
+                let allResults = JSON.parse(localStorage.getItem('concussionAssessments') || '[]');
+                allResults.push(results);
+                localStorage.setItem('concussionAssessments', JSON.stringify(allResults));
+            }
+        }
+
+        // Initialize Three.js scene
+        let scene, camera, renderer, reactionTest;
+
+        function init() {
+            scene = WebXRUtils.createScene();
+            camera = WebXRUtils.createCamera();
+            renderer = WebXRUtils.createRenderer();
+
+            WebXRUtils.addLighting(scene);
+            WebXRUtils.createFloor(scene, 10, 0x202020);
+
+            // Create reference grid
+            const grid = new THREE.GridHelper(5, 10, 0x404040, 0x202020);
+            scene.add(grid);
+
+            WebXRUtils.createVRButton(renderer);
+
+            reactionTest = new ReactionTimeTest();
+            reactionTest.updateUI('intro');
+
+            WebXRUtils.handleWindowResize(camera, renderer);
+
+            renderer.setAnimationLoop(render);
+        }
+
+        function render() {
+            renderer.render(scene, camera);
+        }
+
+        init();
+    </script>
+</body>
+</html>

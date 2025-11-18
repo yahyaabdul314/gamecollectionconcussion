@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cognitive Function Assessment</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: Arial, sans-serif; }
+        canvas { display: block; }
+
+        #ui-overlay {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            color: white;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        .instruction-panel {
+            background: rgba(0, 0, 0, 0.9);
+            padding: 20px;
+            border-radius: 10px;
+            max-width: 700px;
+            margin: 0 auto;
+            pointer-events: all;
+        }
+
+        .test-info {
+            background: rgba(102, 126, 234, 0.9);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+
+        .word-display {
+            font-size: 3rem;
+            font-weight: bold;
+            text-align: center;
+            margin: 30px 0;
+            color: #00ff00;
+        }
+
+        .word-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin: 20px 0;
+        }
+
+        .word-btn {
+            padding: 15px;
+            background: #333;
+            color: white;
+            border: 2px solid #666;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.2s;
+        }
+
+        .word-btn:hover {
+            background: #444;
+            border-color: #888;
+        }
+
+        .word-btn.selected {
+            background: #667eea;
+            border-color: #667eea;
+        }
+
+        .word-btn.correct {
+            background: #00ff00;
+            border-color: #00ff00;
+            color: black;
+        }
+
+        .word-btn.incorrect {
+            background: #ff6b6b;
+            border-color: #ff6b6b;
+        }
+
+        .digit-input {
+            font-size: 2rem;
+            padding: 15px;
+            background: #222;
+            color: white;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            text-align: center;
+            margin: 20px auto;
+            display: block;
+            width: 300px;
+        }
+
+        .pattern-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin: 20px auto;
+            max-width: 400px;
+        }
+
+        .pattern-cell {
+            aspect-ratio: 1;
+            background: #333;
+            border: 2px solid #666;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .pattern-cell.active {
+            background: #00ff00;
+        }
+
+        .pattern-cell.user-selected {
+            background: #667eea;
+        }
+
+        .vr-button {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 15px 30px;
+            font-size: 18px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            z-index: 101;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            margin: 5px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .btn:hover { background: #764ba2; }
+
+        .btn-next {
+            background: #00ff00;
+            color: black;
+            font-weight: bold;
+            font-size: 18px;
+            padding: 15px 40px;
+        }
+
+        .stat-box {
+            display: inline-block;
+            background: #333;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin: 10px;
+            min-width: 120px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: bold;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: #aaa;
+            margin-top: 5px;
+        }
+
+        .score-excellent { color: #00ff00; }
+        .score-good { color: #90ee90; }
+        .score-fair { color: #ffaa00; }
+        .score-poor { color: #ff6b6b; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #555;
+        }
+
+        th {
+            background: #667eea;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div id="ui-overlay"></div>
+
+    <script src="../games/webxr-utils.js"></script>
+    <script>
+        class CognitiveTest {
+            constructor() {
+                this.wordList = [
+                    'APPLE', 'CHAIR', 'OCEAN', 'PIANO', 'TIGER',
+                    'HOUSE', 'BREAD', 'RIVER', 'CLOUD', 'STONE',
+                    'LIGHT', 'GRASS', 'MUSIC', 'FLOWER', 'PAPER'
+                ];
+
+                this.tests = [
+                    { name: 'Immediate Word Recall', type: 'immediateRecall' },
+                    { name: 'Digit Span Forward', type: 'digitForward' },
+                    { name: 'Pattern Memory', type: 'patternMemory' },
+                    { name: 'Digit Span Backward', type: 'digitBackward' },
+                    { name: 'Processing Speed', type: 'processingSpeed' },
+                    { name: 'Delayed Word Recall', type: 'delayedRecall' }
+                ];
+
+                this.currentTestIndex = -1;
+                this.targetWords = [];
+                this.userSelections = [];
+                this.results = {};
+                this.sessionStartTime = new Date();
+                this.distractorWords = [];
+            }
+
+            start() {
+                // Select random target words
+                const shuffled = [...this.wordList].sort(() => Math.random() - 0.5);
+                this.targetWords = shuffled.slice(0, 12);
+                this.distractorWords = shuffled.slice(12);
+
+                this.currentTestIndex = 0;
+                this.showWordLearning();
+            }
+
+            showWordLearning() {
+                const overlay = document.getElementById('ui-overlay');
+
+                overlay.innerHTML = `
+                    <div class="instruction-panel">
+                        <h1>Cognitive Assessment - Word Learning</h1>
+                        <div class="test-info">
+                            <p>You will see a series of words. Try to remember them.</p>
+                            <p>After seeing all words, you'll be asked to recall them.</p>
+                        </div>
+
+                        <div style="text-align: center; margin-top: 20px;">
+                            <button class="btn btn-next" onclick="cognitiveTest.showWords()">Begin</button>
+                            <button class="btn" onclick="window.location.href='../assessment.html'">Cancel</button>
+                        </div>
+                    </div>
+                `;
+            }
+
+            showWords() {
+                let wordIndex = 0;
+
+                const showNextWord = () => {
+                    if (wordIndex >= this.targetWords.length) {
+                        setTimeout(() => this.runTest(), 1000);
+                        return;
+                    }
+
+                    const overlay = document.getElementById('ui-overlay');
+                    overlay.innerHTML = `
+                        <div class="instruction-panel">
+                            <div class="test-info">
+                                <p>Word ${wordIndex + 1} of ${this.targetWords.length}</p>
+                            </div>
+                            <div class="word-display">
+                                ${this.targetWords[wordIndex]}
+                            </div>
+                        </div>
+                    `;
+
+                    wordIndex++;
+                    setTimeout(showNextWord, 2000);
+                };
+
+                showNextWord();
+            }
+
+            runTest() {
+                const test = this.tests[this.currentTestIndex];
+
+                if (test.type === 'immediateRecall') {
+                    this.showImmediateRecall();
+                } else if (test.type === 'digitForward') {
+                    this.showDigitSpan('forward');
+                } else if (test.type === 'digitBackward') {
+                    this.showDigitSpan('backward');
+                } else if (test.type === 'patternMemory') {
+                    this.showPatternMemory();
+                } else if (test.type === 'processingSpeed') {
+                    this.showProcessingSpeed();
+                } else if (test.type === 'delayedRecall') {
+                    this.showDelayedRecall();
+                }
+            }
+
+            showImmediateRecall() {
+                const allWords = [...this.targetWords, ...this.distractorWords.slice(0, 6)]
+                    .sort(() => Math.random() - 0.5);
+
+                const overlay = document.getElementById('ui-overlay');
+                overlay.innerHTML = `
+                    <div class="instruction-panel">
+                        <h2>Immediate Word Recall</h2>
+                        <div class="test-info">
+                            <p>Select all the words you just saw. Click words to select/deselect them.</p>
+                        </div>
+
+                        <div class="word-grid">
+                            ${allWords.map((word, idx) => `
+                                <button class="word-btn" id="word-${idx}"
+                                        onclick="cognitiveTest.toggleWord('${word}', ${idx})">
+                                    ${word}
+                                </button>
+                            `).join('')}
+                        </div>
+
+                        <div style="text-align: center; margin-top: 20px;">
+                            <button class="btn btn-next" onclick="cognitiveTest.submitImmediateRecall()">Submit</button>
+                        </div>
+                    </div>
+                `;
+
+                this.userSelections = [];
+            }
+
+            toggleWord(word, idx) {
+                const btn = document.getElementById(`word-${idx}`);
+                const index = this.userSelections.indexOf(word);
+
+                if (index > -1) {
+                    this.userSelections.splice(index, 1);
+                    btn.classList.remove('selected');
+                } else {
+                    this.userSelections.push(word);
+                    btn.classList.add('selected');
+                }
+            }
+
+            submitImmediateRecall() {
+                const correct = this.userSelections.filter(w => this.targetWords.includes(w)).length;
+                const total = this.targetWords.length;
+                const falsePositives = this.userSelections.filter(w => !this.targetWords.includes(w)).length;
+
+                this.results.immediateRecall = {
+                    correct: correct,
+                    total: total,
+                    percentage: Math.round((correct / total) * 100),
+                    falsePositives: falsePositives
+                };
+
+                this.nextTest();
+            }
+
+            showDigitSpan(direction) {
+                let level = 3;
+                let attempts = 0;
+                let maxAttempts = 2;
+                let maxLevelReached = 3;
+
+                const testLevel = () => {
+                    const digits = this.generateDigits(level);
+                    let displayIndex = 0;
+
+                    const showNextDigit = () => {
+                        if (displayIndex >= digits.length) {
+                            setTimeout(() => promptResponse(digits), 1000);
+                            return;
+                        }
+
+                        const overlay = document.getElementById('ui-overlay');
+                        overlay.innerHTML = `
+                            <div class="instruction-panel">
+                                <h2>Digit Span ${direction === 'forward' ? 'Forward' : 'Backward'}</h2>
+                                <div class="word-display">
+                                    ${digits[displayIndex]}
+                                </div>
+                            </div>
+                        `;
+
+                        displayIndex++;
+                        setTimeout(showNextDigit, 1000);
+                    };
+
+                    const promptResponse = (correctDigits) => {
+                        const overlay = document.getElementById('ui-overlay');
+                        overlay.innerHTML = `
+                            <div class="instruction-panel">
+                                <h2>Digit Span ${direction === 'forward' ? 'Forward' : 'Backward'}</h2>
+                                <div class="test-info">
+                                    <p>Enter the digits you saw${direction === 'backward' ? ' in REVERSE order' : ''}:</p>
+                                </div>
+                                <input type="text" class="digit-input" id="digit-input" maxlength="${level}"
+                                       placeholder="${'0'.repeat(level)}">
+                                <div style="text-align: center; margin-top: 20px;">
+                                    <button class="btn btn-next" onclick="cognitiveTest.checkDigitSpan('${direction}', '${correctDigits.join('')}', ${level}, ${attempts}, ${maxLevelReached})">
+                                        Submit
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+
+                        document.getElementById('digit-input').focus();
+                    };
+
+                    showNextDigit();
+                };
+
+                testLevel();
+            }
+
+            generateDigits(count) {
+                const digits = [];
+                for (let i = 0; i < count; i++) {
+                    digits.push(Math.floor(Math.random() * 10));
+                }
+                return digits;
+            }
+
+            checkDigitSpan(direction, correctSequence, level, attempts, maxLevelReached) {
+                const userInput = document.getElementById('digit-input').value;
+                const isCorrect = userInput === correctSequence;
+
+                if (isCorrect) {
+                    maxLevelReached = level + 1;
+                    level++;
+                    attempts = 0;
+                    this.continueDigitSpan(direction, level, attempts, maxLevelReached);
+                } else {
+                    attempts++;
+                    if (attempts >= 2) {
+                        // Failed level, save results
+                        this.results[`digitSpan${direction === 'forward' ? 'Forward' : 'Backward'}`] = {
+                            maxLevel: maxLevelReached,
+                            score: maxLevelReached
+                        };
+                        this.nextTest();
+                    } else {
+                        this.continueDigitSpan(direction, level, attempts, maxLevelReached);
+                    }
+                }
+            }
+
+            continueDigitSpan(direction, level, attempts, maxLevelReached) {
+                if (level > 9) {
+                    // Max level reached
+                    this.results[`digitSpan${direction === 'forward' ? 'Forward' : 'Backward'}`] = {
+                        maxLevel: 9,
+                        score: 9
+                    };
+                    this.nextTest();
+                } else {
+                    this.showDigitSpan(direction);
+                }
+            }
+
+            showPatternMemory() {
+                let level = 3;
+                let pattern = [];
+
+                const generatePattern = (size) => {
+                    const p = [];
+                    for (let i = 0; i < size; i++) {
+                        p.push(Math.floor(Math.random() * 16));
+                    }
+                    return p;
+                };
+
+                pattern = generatePattern(level);
+                let displayIndex = 0;
+
+                const showPattern = () => {
+                    const overlay = document.getElementById('ui-overlay');
+                    let gridHTML = '';
+
+                    for (let i = 0; i < 16; i++) {
+                        const isActive = displayIndex < pattern.length && pattern[displayIndex] === i;
+                        gridHTML += `<div class="pattern-cell ${isActive ? 'active' : ''}"></div>`;
+                    }
+
+                    overlay.innerHTML = `
+                        <div class="instruction-panel">
+                            <h2>Pattern Memory - Level ${level}</h2>
+                            <div class="test-info">
+                                <p>Watch the pattern...</p>
+                            </div>
+                            <div class="pattern-grid">
+                                ${gridHTML}
+                            </div>
+                        </div>
+                    `;
+
+                    displayIndex++;
+
+                    if (displayIndex <= pattern.length) {
+                        setTimeout(showPattern, 800);
+                    } else {
+                        setTimeout(() => promptPatternResponse(pattern), 500);
+                    }
+                };
+
+                const promptPatternResponse = (correctPattern) => {
+                    const overlay = document.getElementById('ui-overlay');
+                    const userPattern = [];
+
+                    let gridHTML = '';
+                    for (let i = 0; i < 16; i++) {
+                        gridHTML += `<div class="pattern-cell" id="cell-${i}" onclick="cognitiveTest.togglePattern(${i}, ${JSON.stringify(correctPattern)})"></div>`;
+                    }
+
+                    overlay.innerHTML = `
+                        <div class="instruction-panel">
+                            <h2>Pattern Memory</h2>
+                            <div class="test-info">
+                                <p>Click the cells in the order they were shown:</p>
+                            </div>
+                            <div class="pattern-grid">
+                                ${gridHTML}
+                            </div>
+                            <div style="text-align: center; margin-top: 20px;">
+                                <button class="btn" onclick="cognitiveTest.resetPattern()">Reset</button>
+                                <button class="btn btn-next" onclick="cognitiveTest.submitPattern(${JSON.stringify(correctPattern)})">Submit</button>
+                            </div>
+                        </div>
+                    `;
+
+                    this.currentPattern = [];
+                };
+
+                showPattern();
+            }
+
+            togglePattern(cellIndex, correctPattern) {
+                this.currentPattern = this.currentPattern || [];
+                this.currentPattern.push(cellIndex);
+
+                const cell = document.getElementById(`cell-${cellIndex}`);
+                cell.classList.add('user-selected');
+                cell.textContent = this.currentPattern.length;
+            }
+
+            resetPattern() {
+                this.currentPattern = [];
+                for (let i = 0; i < 16; i++) {
+                    const cell = document.getElementById(`cell-${i}`);
+                    if (cell) {
+                        cell.classList.remove('user-selected');
+                        cell.textContent = '';
+                    }
+                }
+            }
+
+            submitPattern(correctPattern) {
+                const isCorrect = JSON.stringify(this.currentPattern) === JSON.stringify(correctPattern);
+
+                this.results.patternMemory = {
+                    level: correctPattern.length,
+                    correct: isCorrect,
+                    score: isCorrect ? correctPattern.length : correctPattern.length - 1
+                };
+
+                this.nextTest();
+            }
+
+            showProcessingSpeed() {
+                const symbols = ['●', '■', '▲', '★', '◆'];
+                let score = 0;
+                let trials = 20;
+                let currentTrial = 0;
+
+                const nextTrial = () => {
+                    if (currentTrial >= trials) {
+                        this.results.processingSpeed = {
+                            score: score,
+                            total: trials,
+                            percentage: Math.round((score / trials) * 100)
+                        };
+                        this.nextTest();
+                        return;
+                    }
+
+                    const targetSymbol = symbols[Math.floor(Math.random() * symbols.length)];
+                    const options = [targetSymbol, ...symbols.filter(s => s !== targetSymbol).sort(() => Math.random() - 0.5).slice(0, 3)]
+                        .sort(() => Math.random() - 0.5);
+
+                    const startTime = Date.now();
+
+                    const overlay = document.getElementById('ui-overlay');
+                    overlay.innerHTML = `
+                        <div class="instruction-panel">
+                            <h2>Processing Speed</h2>
+                            <div class="test-info">
+                                <p>Trial ${currentTrial + 1} of ${trials}</p>
+                                <p>Click the matching symbol as quickly as possible:</p>
+                            </div>
+
+                            <div class="word-display">${targetSymbol}</div>
+
+                            <div class="word-grid" style="grid-template-columns: repeat(4, 1fr);">
+                                ${options.map((symbol, idx) => `
+                                    <button class="word-btn" style="font-size: 2rem;"
+                                            onclick="cognitiveTest.checkProcessingSpeed('${symbol}', '${targetSymbol}', ${startTime})">
+                                        ${symbol}
+                                    </button>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+
+                    currentTrial++;
+                };
+
+                this.processingSpeedScore = 0;
+                this.processingSpeedTrials = trials;
+                this.processingSpeedCurrent = 0;
+
+                nextTrial();
+            }
+
+            checkProcessingSpeed(selected, target, startTime) {
+                const reactionTime = Date.now() - startTime;
+
+                if (selected === target) {
+                    this.processingSpeedScore++;
+                }
+
+                this.processingSpeedCurrent++;
+
+                if (this.processingSpeedCurrent >= this.processingSpeedTrials) {
+                    this.results.processingSpeed = {
+                        score: this.processingSpeedScore,
+                        total: this.processingSpeedTrials,
+                        percentage: Math.round((this.processingSpeedScore / this.processingSpeedTrials) * 100)
+                    };
+                    this.nextTest();
+                } else {
+                    setTimeout(() => this.showProcessingSpeed(), 500);
+                }
+            }
+
+            showDelayedRecall() {
+                const allWords = [...this.targetWords, ...this.distractorWords.slice(0, 6)]
+                    .sort(() => Math.random() - 0.5);
+
+                const overlay = document.getElementById('ui-overlay');
+                overlay.innerHTML = `
+                    <div class="instruction-panel">
+                        <h2>Delayed Word Recall</h2>
+                        <div class="test-info">
+                            <p>Select the words you learned at the beginning of this test:</p>
+                        </div>
+
+                        <div class="word-grid">
+                            ${allWords.map((word, idx) => `
+                                <button class="word-btn" id="delayed-word-${idx}"
+                                        onclick="cognitiveTest.toggleDelayedWord('${word}', ${idx})">
+                                    ${word}
+                                </button>
+                            `).join('')}
+                        </div>
+
+                        <div style="text-align: center; margin-top: 20px;">
+                            <button class="btn btn-next" onclick="cognitiveTest.submitDelayedRecall()">Submit</button>
+                        </div>
+                    </div>
+                `;
+
+                this.delayedSelections = [];
+            }
+
+            toggleDelayedWord(word, idx) {
+                const btn = document.getElementById(`delayed-word-${idx}`);
+                const index = this.delayedSelections.indexOf(word);
+
+                if (index > -1) {
+                    this.delayedSelections.splice(index, 1);
+                    btn.classList.remove('selected');
+                } else {
+                    this.delayedSelections.push(word);
+                    btn.classList.add('selected');
+                }
+            }
+
+            submitDelayedRecall() {
+                const correct = this.delayedSelections.filter(w => this.targetWords.includes(w)).length;
+                const total = this.targetWords.length;
+                const falsePositives = this.delayedSelections.filter(w => !this.targetWords.includes(w)).length;
+
+                this.results.delayedRecall = {
+                    correct: correct,
+                    total: total,
+                    percentage: Math.round((correct / total) * 100),
+                    falsePositives: falsePositives
+                };
+
+                this.showResults();
+            }
+
+            nextTest() {
+                this.currentTestIndex++;
+                if (this.currentTestIndex < this.tests.length) {
+                    setTimeout(() => this.runTest(), 1000);
+                } else {
+                    this.showResults();
+                }
+            }
+
+            showResults() {
+                const compositeScore = this.calculateCompositeScore();
+                const interpretation = this.getInterpretation(compositeScore);
+
+                this.saveResults(compositeScore, interpretation);
+
+                const overlay = document.getElementById('ui-overlay');
+
+                overlay.innerHTML = `
+                    <div class="instruction-panel">
+                        <h1>Cognitive Assessment Results</h1>
+
+                        <div style="text-align: center; margin: 20px 0;">
+                            <div class="stat-box">
+                                <div class="stat-value ${interpretation.class}">${compositeScore}</div>
+                                <div class="stat-label">Composite Score</div>
+                            </div>
+                            <div class="stat-box">
+                                <div class="stat-value">${interpretation.rating}</div>
+                                <div class="stat-label">Overall Performance</div>
+                            </div>
+                        </div>
+
+                        <h3>Domain Scores</h3>
+                        <table>
+                            <thead>
+                                <tr><th>Test</th><th>Score</th></tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Immediate Recall</td>
+                                    <td>${this.results.immediateRecall?.percentage || 0}%</td>
+                                </tr>
+                                <tr>
+                                    <td>Delayed Recall</td>
+                                    <td>${this.results.delayedRecall?.percentage || 0}%</td>
+                                </tr>
+                                <tr>
+                                    <td>Digit Span Forward</td>
+                                    <td>${this.results.digitSpanForward?.maxLevel || 0} digits</td>
+                                </tr>
+                                <tr>
+                                    <td>Digit Span Backward</td>
+                                    <td>${this.results.digitSpanBackward?.maxLevel || 0} digits</td>
+                                </tr>
+                                <tr>
+                                    <td>Pattern Memory</td>
+                                    <td>${this.results.patternMemory?.score || 0} items</td>
+                                </tr>
+                                <tr>
+                                    <td>Processing Speed</td>
+                                    <td>${this.results.processingSpeed?.percentage || 0}%</td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <div class="test-info">
+                            <h4>Interpretation</h4>
+                            <p>${interpretation.description}</p>
+                        </div>
+
+                        <div style="text-align: center; margin-top: 20px;">
+                            <button class="btn" onclick="window.location.href='results.html'">View All Results</button>
+                            <button class="btn" onclick="window.location.href='../assessment.html'">Back to Assessment</button>
+                            <button class="btn" onclick="location.reload()">Retake Test</button>
+                        </div>
+                    </div>
+                `;
+            }
+
+            calculateCompositeScore() {
+                const scores = [];
+
+                if (this.results.immediateRecall) scores.push(this.results.immediateRecall.percentage);
+                if (this.results.delayedRecall) scores.push(this.results.delayedRecall.percentage);
+                if (this.results.digitSpanForward) scores.push((this.results.digitSpanForward.maxLevel / 9) * 100);
+                if (this.results.digitSpanBackward) scores.push((this.results.digitSpanBackward.maxLevel / 9) * 100);
+                if (this.results.patternMemory) scores.push((this.results.patternMemory.score / 9) * 100);
+                if (this.results.processingSpeed) scores.push(this.results.processingSpeed.percentage);
+
+                const average = scores.reduce((a, b) => a + b, 0) / scores.length;
+                return Math.round(average);
+            }
+
+            getInterpretation(score) {
+                if (score >= 85) return {
+                    rating: 'Excellent',
+                    class: 'score-excellent',
+                    description: 'Cognitive function within normal limits'
+                };
+                if (score >= 70) return {
+                    rating: 'Good',
+                    class: 'score-good',
+                    description: 'Cognitive function generally normal with minor areas of concern'
+                };
+                if (score >= 55) return {
+                    rating: 'Fair',
+                    class: 'score-fair',
+                    description: 'Some cognitive deficits detected - follow-up recommended'
+                };
+                return {
+                    rating: 'Poor',
+                    class: 'score-poor',
+                    description: 'Significant cognitive impairment detected - medical evaluation strongly recommended'
+                };
+            }
+
+            saveResults(compositeScore, interpretation) {
+                const results = {
+                    testType: 'Cognitive',
+                    timestamp: this.sessionStartTime.toISOString(),
+                    compositeScore: compositeScore,
+                    interpretation: interpretation.rating,
+                    detailedScores: this.results
+                };
+
+                let allResults = JSON.parse(localStorage.getItem('concussionAssessments') || '[]');
+                allResults.push(results);
+                localStorage.setItem('concussionAssessments', JSON.stringify(allResults));
+            }
+        }
+
+        // Initialize Three.js scene
+        let scene, camera, renderer, cognitiveTest;
+
+        function init() {
+            scene = WebXRUtils.createScene();
+            camera = WebXRUtils.createCamera();
+            renderer = WebXRUtils.createRenderer();
+
+            WebXRUtils.addLighting(scene);
+            WebXRUtils.createFloor(scene, 10, 0x202020);
+
+            WebXRUtils.createVRButton(renderer);
+
+            cognitiveTest = new CognitiveTest();
+
+            const overlay = document.getElementById('ui-overlay');
+            overlay.innerHTML = `
+                <div class="instruction-panel">
+                    <h1>Cognitive Function Assessment</h1>
+                    <div class="test-info">
+                        <h3>Test Battery Overview</h3>
+                        <p>This comprehensive cognitive assessment includes:</p>
+                        <ul>
+                            <li>Immediate and Delayed Word Recall (Memory)</li>
+                            <li>Digit Span Forward & Backward (Working Memory)</li>
+                            <li>Pattern Memory (Visual Memory)</li>
+                            <li>Processing Speed (Information Processing)</li>
+                        </ul>
+                        <p><strong>Estimated Time:</strong> 8-10 minutes</p>
+                    </div>
+
+                    <div style="text-align: center; margin-top: 20px;">
+                        <button class="btn btn-next" onclick="cognitiveTest.start()">Begin Assessment</button>
+                        <button class="btn" onclick="window.location.href='../assessment.html'">Cancel</button>
+                    </div>
+                </div>
+            `;
+
+            WebXRUtils.handleWindowResize(camera, renderer);
+
+            renderer.setAnimationLoop(render);
+        }
+
+        function render() {
+            renderer.render(scene, camera);
+        }
+
+        init();
+    </script>
+</body>
+</html>

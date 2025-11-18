@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Symptom Checklist</title>
+    <link rel="stylesheet" href="../styles.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #1a1a1a;
+            color: white;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 10px;
+        }
+
+        .info-box {
+            background: rgba(102, 126, 234, 0.2);
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .warning-box {
+            background: #fff3cd;
+            color: #856404;
+            border: 2px solid #ffc107;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .symptom-category {
+            background: #2a2a2a;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .symptom-category h3 {
+            color: #667eea;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+
+        .symptom-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+            border-bottom: 1px solid #444;
+        }
+
+        .symptom-item:last-child {
+            border-bottom: none;
+        }
+
+        .symptom-label {
+            flex: 1;
+            font-size: 1.1rem;
+        }
+
+        .symptom-description {
+            font-size: 0.9rem;
+            color: #aaa;
+            margin-top: 5px;
+        }
+
+        .rating-scale {
+            display: flex;
+            gap: 8px;
+        }
+
+        .rating-btn {
+            width: 45px;
+            height: 45px;
+            border: 2px solid #666;
+            background: #333;
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+
+        .rating-btn:hover {
+            background: #444;
+            border-color: #888;
+            transform: scale(1.05);
+        }
+
+        .rating-btn.selected {
+            background: #667eea;
+            border-color: #667eea;
+            transform: scale(1.1);
+        }
+
+        .rating-legend {
+            background: #333;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .rating-legend-item {
+            display: inline-block;
+            margin: 0 15px;
+            font-size: 0.9rem;
+            color: #aaa;
+        }
+
+        .score-summary {
+            background: #333;
+            padding: 25px;
+            border-radius: 10px;
+            margin: 30px 0;
+            text-align: center;
+        }
+
+        .score-value {
+            font-size: 3rem;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .score-mild { color: #00ff00; }
+        .score-moderate { color: #ffaa00; }
+        .score-severe { color: #ff6b6b; }
+
+        .score-label {
+            font-size: 1.2rem;
+            color: #aaa;
+        }
+
+        .btn {
+            padding: 15px 30px;
+            margin: 10px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+
+        .btn:hover {
+            background: #764ba2;
+            transform: translateY(-2px);
+        }
+
+        .btn-submit {
+            background: #00ff00;
+            color: black;
+            font-size: 18px;
+            padding: 18px 40px;
+        }
+
+        .btn-submit:disabled {
+            background: #555;
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        .progress-indicator {
+            background: #333;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #222;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #00ff00);
+            transition: width 0.3s ease;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #444;
+        }
+
+        th {
+            background: #667eea;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="content">
+            <div class="header">
+                <h1>Concussion Symptom Checklist</h1>
+                <p>Self-Report Symptom Inventory</p>
+            </div>
+
+            <div class="warning-box">
+                <h3>⚠️ Important</h3>
+                <ul>
+                    <li>Rate each symptom based on how you feel RIGHT NOW</li>
+                    <li>Be honest - there are no "right" or "wrong" answers</li>
+                    <li>If you're experiencing severe symptoms (loss of consciousness, severe headache, repeated vomiting), seek immediate medical attention</li>
+                    <li>This checklist is for monitoring purposes and does not replace professional medical evaluation</li>
+                </ul>
+            </div>
+
+            <div class="rating-legend">
+                <strong>Rating Scale:</strong>
+                <span class="rating-legend-item">0 = None</span>
+                <span class="rating-legend-item">1-2 = Mild</span>
+                <span class="rating-legend-item">3-4 = Moderate</span>
+                <span class="rating-legend-item">5-6 = Severe</span>
+            </div>
+
+            <div class="progress-indicator">
+                <div>Symptoms Rated: <strong id="rated-count">0</strong> / <strong id="total-count">22</strong></div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <div class="symptom-category">
+                <h3>Physical Symptoms</h3>
+                <div id="physical-symptoms"></div>
+            </div>
+
+            <div class="symptom-category">
+                <h3>Cognitive Symptoms</h3>
+                <div id="cognitive-symptoms"></div>
+            </div>
+
+            <div class="symptom-category">
+                <h3>Emotional Symptoms</h3>
+                <div id="emotional-symptoms"></div>
+            </div>
+
+            <div class="symptom-category">
+                <h3>Sleep Symptoms</h3>
+                <div id="sleep-symptoms"></div>
+            </div>
+
+            <div style="text-align: center; margin: 30px 0;">
+                <button class="btn btn-submit" id="submit-btn" onclick="submitSymptoms()" disabled>
+                    Submit Symptom Report
+                </button>
+                <button class="btn" onclick="window.location.href='../assessment.html'">
+                    Cancel
+                </button>
+            </div>
+        </div>
+
+        <div id="results" style="display: none;">
+            <!-- Results will be inserted here -->
+        </div>
+    </div>
+
+    <script>
+        const symptoms = {
+            physical: [
+                { id: 'headache', name: 'Headache', description: 'Pain or pressure in the head' },
+                { id: 'nausea', name: 'Nausea or vomiting', description: 'Feeling sick to your stomach' },
+                { id: 'balance', name: 'Balance problems or dizziness', description: 'Difficulty maintaining balance' },
+                { id: 'vision', name: 'Blurred or double vision', description: 'Visual disturbances' },
+                { id: 'light', name: 'Sensitivity to light', description: 'Bothered by bright lights' },
+                { id: 'noise', name: 'Sensitivity to noise', description: 'Bothered by loud sounds' },
+                { id: 'pressure', name: 'Pressure in head', description: 'Feeling of fullness or pressure' },
+                { id: 'neck', name: 'Neck pain', description: 'Pain or stiffness in neck' }
+            ],
+            cognitive: [
+                { id: 'foggy', name: 'Feeling mentally foggy', description: 'Difficulty thinking clearly' },
+                { id: 'slowness', name: 'Feeling slowed down', description: 'Mental processing feels slower' },
+                { id: 'concentration', name: 'Difficulty concentrating', description: 'Hard to focus or pay attention' },
+                { id: 'memory', name: 'Difficulty remembering', description: 'Memory problems' },
+                { id: 'confusion', name: 'Confusion', description: 'Feeling disoriented or confused' }
+            ],
+            emotional: [
+                { id: 'irritability', name: 'Irritability', description: 'Easily annoyed or frustrated' },
+                { id: 'sadness', name: 'Sadness', description: 'Feeling down or depressed' },
+                { id: 'nervous', name: 'More emotional or nervous', description: 'Increased emotional responses' },
+                { id: 'fatigue', name: 'Fatigue or low energy', description: 'Feeling tired or low energy' }
+            ],
+            sleep: [
+                { id: 'drowsy', name: 'Drowsiness', description: 'Feeling sleepy during the day' },
+                { id: 'sleep_more', name: 'Sleeping more than usual', description: 'Increased sleep need' },
+                { id: 'sleep_less', name: 'Sleeping less than usual', description: 'Trouble falling/staying asleep' },
+                { id: 'sleep_trouble', name: 'Trouble falling asleep', description: 'Difficulty initiating sleep' }
+            ]
+        };
+
+        const ratings = {};
+        let totalSymptoms = 0;
+
+        function createSymptomItem(symptom) {
+            return `
+                <div class="symptom-item">
+                    <div>
+                        <div class="symptom-label">${symptom.name}</div>
+                        <div class="symptom-description">${symptom.description}</div>
+                    </div>
+                    <div class="rating-scale" id="rating-${symptom.id}">
+                        ${[0,1,2,3,4,5,6].map(val => `
+                            <button class="rating-btn" onclick="setRating('${symptom.id}', ${val})">
+                                ${val}
+                            </button>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderSymptoms() {
+            document.getElementById('physical-symptoms').innerHTML =
+                symptoms.physical.map(s => createSymptomItem(s)).join('');
+            document.getElementById('cognitive-symptoms').innerHTML =
+                symptoms.cognitive.map(s => createSymptomItem(s)).join('');
+            document.getElementById('emotional-symptoms').innerHTML =
+                symptoms.emotional.map(s => createSymptomItem(s)).join('');
+            document.getElementById('sleep-symptoms').innerHTML =
+                symptoms.sleep.map(s => createSymptomItem(s)).join('');
+
+            // Calculate total symptoms
+            totalSymptoms = Object.values(symptoms).reduce((sum, cat) => sum + cat.length, 0);
+            document.getElementById('total-count').textContent = totalSymptoms;
+        }
+
+        function setRating(symptomId, value) {
+            ratings[symptomId] = value;
+
+            // Update UI
+            const container = document.getElementById(`rating-${symptomId}`);
+            const buttons = container.querySelectorAll('.rating-btn');
+            buttons.forEach((btn, idx) => {
+                if (idx === value) {
+                    btn.classList.add('selected');
+                } else {
+                    btn.classList.remove('selected');
+                }
+            });
+
+            // Update progress
+            updateProgress();
+        }
+
+        function updateProgress() {
+            const ratedCount = Object.keys(ratings).length;
+            document.getElementById('rated-count').textContent = ratedCount;
+
+            const percentage = (ratedCount / totalSymptoms) * 100;
+            document.getElementById('progress-fill').style.width = percentage + '%';
+
+            // Enable submit button if all symptoms rated
+            document.getElementById('submit-btn').disabled = ratedCount < totalSymptoms;
+        }
+
+        function calculateScores() {
+            let totalScore = 0;
+            const categoryScores = {};
+            const symptomCounts = { none: 0, mild: 0, moderate: 0, severe: 0 };
+
+            Object.entries(symptoms).forEach(([category, symptomList]) => {
+                let categoryScore = 0;
+                symptomList.forEach(symptom => {
+                    const rating = ratings[symptom.id] || 0;
+                    categoryScore += rating;
+                    totalScore += rating;
+
+                    if (rating === 0) symptomCounts.none++;
+                    else if (rating <= 2) symptomCounts.mild++;
+                    else if (rating <= 4) symptomCounts.moderate++;
+                    else symptomCounts.severe++;
+                });
+                categoryScores[category] = categoryScore;
+            });
+
+            return { totalScore, categoryScores, symptomCounts };
+        }
+
+        function getInterpretation(totalScore, symptomCounts) {
+            if (totalScore === 0) {
+                return {
+                    severity: 'None',
+                    class: 'score-mild',
+                    description: 'No symptoms reported. This is a good baseline or indicates recovery.',
+                    recommendation: 'Continue monitoring. If this is a baseline, save these results for comparison.'
+                };
+            } else if (totalScore <= 10 && symptomCounts.severe === 0) {
+                return {
+                    severity: 'Mild',
+                    class: 'score-mild',
+                    description: 'Mild symptom burden. May be normal or indicate minor issues.',
+                    recommendation: 'Monitor symptoms. If persistent or worsening, consult healthcare provider.'
+                };
+            } else if (totalScore <= 30 && symptomCounts.severe <= 2) {
+                return {
+                    severity: 'Moderate',
+                    class: 'score-moderate',
+                    description: 'Moderate symptom burden. Indicates significant symptoms requiring attention.',
+                    recommendation: 'Recommend medical evaluation, especially if symptoms persist beyond 24-48 hours.'
+                };
+            } else {
+                return {
+                    severity: 'Severe',
+                    class: 'score-severe',
+                    description: 'Severe symptom burden. Immediate medical attention recommended.',
+                    recommendation: 'Seek medical evaluation as soon as possible. Do not return to activities.'
+                };
+            }
+        }
+
+        function submitSymptoms() {
+            const scores = calculateScores();
+            const interpretation = getInterpretation(scores.totalScore, scores.symptomCounts);
+
+            // Save results
+            const results = {
+                testType: 'SymptomChecklist',
+                timestamp: new Date().toISOString(),
+                totalScore: scores.totalScore,
+                maxScore: totalSymptoms * 6,
+                categoryScores: scores.categoryScores,
+                symptomCounts: scores.symptomCounts,
+                interpretation: interpretation.severity,
+                individualRatings: ratings
+            };
+
+            let allResults = JSON.parse(localStorage.getItem('concussionAssessments') || '[]');
+            allResults.push(results);
+            localStorage.setItem('concussionAssessments', JSON.stringify(allResults));
+
+            // Show results
+            showResults(scores, interpretation);
+        }
+
+        function showResults(scores, interpretation) {
+            const categoryNames = {
+                physical: 'Physical',
+                cognitive: 'Cognitive',
+                emotional: 'Emotional',
+                sleep: 'Sleep'
+            };
+
+            let categoryRows = '';
+            Object.entries(scores.categoryScores).forEach(([category, score]) => {
+                const maxScore = symptoms[category].length * 6;
+                categoryRows += `
+                    <tr>
+                        <td>${categoryNames[category]}</td>
+                        <td>${score} / ${maxScore}</td>
+                        <td>${Math.round((score / maxScore) * 100)}%</td>
+                    </tr>
+                `;
+            });
+
+            document.getElementById('content').style.display = 'none';
+            document.getElementById('results').style.display = 'block';
+            document.getElementById('results').innerHTML = `
+                <div class="header">
+                    <h1>Symptom Assessment Results</h1>
+                </div>
+
+                <div class="score-summary">
+                    <div class="score-label">Total Symptom Score</div>
+                    <div class="score-value ${interpretation.class}">
+                        ${scores.totalScore} / ${totalSymptoms * 6}
+                    </div>
+                    <div class="score-label">${interpretation.severity} Symptom Burden</div>
+                </div>
+
+                <div class="info-box">
+                    <h3>${interpretation.severity} Symptoms</h3>
+                    <p><strong>Assessment:</strong> ${interpretation.description}</p>
+                    <p><strong>Recommendation:</strong> ${interpretation.recommendation}</p>
+                </div>
+
+                <div class="symptom-category">
+                    <h3>Symptom Breakdown</h3>
+                    <div style="display: flex; justify-content: space-around; margin: 20px 0;">
+                        <div style="text-align: center;">
+                            <div style="font-size: 2rem; font-weight: bold; color: #00ff00;">
+                                ${scores.symptomCounts.none}
+                            </div>
+                            <div style="color: #aaa;">None (0)</div>
+                        </div>
+                        <div style="text-align: center;">
+                            <div style="font-size: 2rem; font-weight: bold; color: #90ee90;">
+                                ${scores.symptomCounts.mild}
+                            </div>
+                            <div style="color: #aaa;">Mild (1-2)</div>
+                        </div>
+                        <div style="text-align: center;">
+                            <div style="font-size: 2rem; font-weight: bold; color: #ffaa00;">
+                                ${scores.symptomCounts.moderate}
+                            </div>
+                            <div style="color: #aaa;">Moderate (3-4)</div>
+                        </div>
+                        <div style="text-align: center;">
+                            <div style="font-size: 2rem; font-weight: bold; color: #ff6b6b;">
+                                ${scores.symptomCounts.severe}
+                            </div>
+                            <div style="color: #aaa;">Severe (5-6)</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="symptom-category">
+                    <h3>Category Scores</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Category</th>
+                                <th>Score</th>
+                                <th>Percentage</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${categoryRows}
+                        </tbody>
+                    </table>
+                </div>
+
+                ${scores.totalScore > 30 ? `
+                    <div class="warning-box">
+                        <h3>⚠️ High Symptom Score Detected</h3>
+                        <p>Your symptom score indicates a significant symptom burden. Please consider the following:</p>
+                        <ul>
+                            <li>Consult with a healthcare provider as soon as possible</li>
+                            <li>Do not return to work, sports, or high-risk activities</li>
+                            <li>Get adequate rest and avoid screens if symptoms worsen</li>
+                            <li>If symptoms include severe headache, repeated vomiting, seizures, or worsening confusion, seek emergency medical attention</li>
+                        </ul>
+                    </div>
+                ` : ''}
+
+                <div style="text-align: center; margin: 30px 0;">
+                    <button class="btn" onclick="window.location.href='results.html'">
+                        View All Assessment Results
+                    </button>
+                    <button class="btn" onclick="window.location.href='../assessment.html'">
+                        Back to Assessment Menu
+                    </button>
+                    <button class="btn" onclick="location.reload()">
+                        Retake Symptom Checklist
+                    </button>
+                </div>
+            `;
+        }
+
+        // Initialize
+        renderSymptoms();
+    </script>
+</body>
+</html>
