@@ -157,16 +157,19 @@
         .guest-btn {
             display: inline-block;
             padding: 12px 30px;
-            background: #f0f0f0;
-            color: #333;
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
             text-decoration: none;
             border-radius: 8px;
             font-weight: bold;
             transition: all 0.3s ease;
+            width: 100%;
+            font-size: 16px;
         }
 
         .guest-btn:hover {
-            background: #e0e0e0;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(79, 172, 254, 0.4);
         }
 
         .loading {
@@ -245,7 +248,7 @@
         <!-- Guest Access -->
         <div class="guest-login">
             <p style="color: #666; margin-bottom: 10px;">Or continue without an account</p>
-            <a href="landing.html" class="guest-btn">Back to Home</a>
+            <button class="guest-btn" onclick="continueAsGuest()" style="border: none; cursor: pointer;">Continue as Guest</button>
             <p style="color: #999; font-size: 12px; margin-top: 10px;">
                 Note: Progress will only be saved locally
             </p>
@@ -265,7 +268,24 @@
             if (isAuth) {
                 window.location.href = 'dashboard.html';
             }
+
+            // Check if coming from guest link
+            if (window.location.hash === '#guest') {
+                // Highlight the guest option
+                const guestSection = document.querySelector('.guest-login');
+                guestSection.style.animation = 'pulse 2s ease-in-out 3';
+            }
         });
+
+        // Add pulse animation for guest section
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes pulse {
+                0%, 100% { transform: scale(1); }
+                50% { transform: scale(1.05); }
+            }
+        `;
+        document.head.appendChild(style);
 
         function switchTab(tab) {
             // Update tab buttons
@@ -334,17 +354,16 @@
             const result = await authManager.signUp(email, password, { name });
 
             if (result.success) {
-                showSuccess('Account created successfully! Please check your email to verify your account.');
+                showSuccess('Account created successfully! Redirecting to dashboard...');
                 document.getElementById('signupForm').reset();
                 setTimeout(() => {
-                    switchTabDirect('signin');
-                }, 2000);
+                    window.location.href = 'dashboard.html';
+                }, 1500);
             } else {
                 showError(result.error || 'Sign up failed. Please try again.');
+                btn.disabled = false;
+                btn.textContent = 'Sign Up';
             }
-
-            btn.disabled = false;
-            btn.textContent = 'Sign Up';
         }
 
         function switchTabDirect(tab) {
@@ -391,6 +410,19 @@
         function hideMessages() {
             document.getElementById('errorMessage').style.display = 'none';
             document.getElementById('successMessage').style.display = 'none';
+        }
+
+        function continueAsGuest() {
+            // Set guest mode flag in localStorage
+            localStorage.setItem('guestMode', 'true');
+            localStorage.setItem('guestUser', JSON.stringify({
+                id: 'guest-' + Date.now(),
+                email: 'guest@local',
+                name: 'Guest User'
+            }));
+
+            // Redirect to dashboard
+            window.location.href = 'dashboard.html';
         }
     </script>
 </body>

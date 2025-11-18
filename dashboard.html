@@ -414,6 +414,7 @@
             <div class="nav-actions">
                 <div class="user-info">
                     <span id="userEmail">Loading...</span>
+                    <span id="guestBadge" style="display: none; margin-left: 10px; padding: 4px 12px; background: #fbbf24; color: #78350f; border-radius: 12px; font-size: 12px; font-weight: bold;">GUEST MODE</span>
                 </div>
                 <button class="btn btn-logout" onclick="handleLogout()">Logout</button>
             </div>
@@ -560,19 +561,31 @@
 
         // Initialize
         document.addEventListener('DOMContentLoaded', async function() {
-            initSupabase();
-            authManager = getAuthManager();
+            // Check for guest mode
+            const isGuestMode = localStorage.getItem('guestMode') === 'true';
 
-            // Check auth
-            const user = await authManager.getCurrentUser();
-            if (!user) {
-                window.location.href = 'auth.html';
-                return;
+            if (isGuestMode) {
+                // Guest mode - use localStorage
+                const guestUser = JSON.parse(localStorage.getItem('guestUser'));
+                document.getElementById('userEmail').textContent = 'Guest User';
+                document.getElementById('userName').textContent = 'Guest';
+                document.getElementById('guestBadge').style.display = 'inline-block';
+            } else {
+                // Regular authenticated mode
+                initSupabase();
+                authManager = getAuthManager();
+
+                // Check auth
+                const user = await authManager.getCurrentUser();
+                if (!user) {
+                    window.location.href = 'auth.html';
+                    return;
+                }
+
+                // Update user info
+                document.getElementById('userEmail').textContent = user.email;
+                document.getElementById('userName').textContent = user.email.split('@')[0];
             }
-
-            // Update user info
-            document.getElementById('userEmail').textContent = user.email;
-            document.getElementById('userName').textContent = user.email.split('@')[0];
 
             // Initialize tracker
             tracker = new ProgressionTracker();
@@ -862,8 +875,21 @@
 
         async function handleLogout() {
             if (confirm('Are you sure you want to log out?')) {
-                await authManager.signOut();
-                window.location.href = 'landing.html';
+                // Check if guest mode
+                const isGuestMode = localStorage.getItem('guestMode') === 'true';
+
+                if (isGuestMode) {
+                    // Clear guest data
+                    if (confirm('This will clear all your progress. Continue?')) {
+                        localStorage.removeItem('guestMode');
+                        localStorage.removeItem('guestUser');
+                        window.location.href = 'landing.html';
+                    }
+                } else {
+                    // Regular logout
+                    await authManager.signOut();
+                    window.location.href = 'landing.html';
+                }
             }
         }
 

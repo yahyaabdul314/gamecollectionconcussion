@@ -64,15 +64,20 @@ class VRSessionController {
      */
     async initialize() {
         try {
-            // Initialize Supabase
-            initSupabase();
-            this.authManager = getAuthManager();
+            // Check for guest mode
+            const isGuestMode = localStorage.getItem('guestMode') === 'true';
 
-            // Check authentication
-            const user = await this.authManager.getCurrentUser();
-            if (!user) {
-                window.location.href = 'auth.html';
-                return;
+            if (!isGuestMode) {
+                // Initialize Supabase for authenticated users
+                initSupabase();
+                this.authManager = getAuthManager();
+
+                // Check authentication
+                const user = await this.authManager.getCurrentUser();
+                if (!user) {
+                    window.location.href = 'auth.html';
+                    return;
+                }
             }
 
             // Initialize tracker and AI
