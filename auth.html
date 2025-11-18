@@ -260,20 +260,34 @@
 
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', async function() {
-            initSupabase();
-            authManager = getAuthManager();
+            console.log('Auth page loaded');
 
-            // Check if already logged in
-            const isAuth = await authManager.isAuthenticated();
-            if (isAuth) {
-                window.location.href = 'dashboard.html';
+            try {
+                // Try to initialize Supabase
+                if (typeof initSupabase === 'function') {
+                    initSupabase();
+                    authManager = getAuthManager();
+
+                    // Check if already logged in
+                    const isAuth = await authManager.isAuthenticated();
+                    if (isAuth) {
+                        window.location.href = 'dashboard.html';
+                        return;
+                    }
+                } else {
+                    console.warn('Supabase not available, only guest mode will work');
+                }
+            } catch (error) {
+                console.error('Init error:', error);
+                // Continue anyway - guest mode will still work
             }
 
             // Check if coming from guest link
             if (window.location.hash === '#guest') {
-                // Highlight the guest option
-                const guestSection = document.querySelector('.guest-login');
-                guestSection.style.animation = 'pulse 2s ease-in-out 3';
+                // Auto-trigger guest mode
+                setTimeout(() => {
+                    continueAsGuest();
+                }, 500);
             }
         });
 
@@ -288,6 +302,7 @@
         document.head.appendChild(style);
 
         function switchTab(tab) {
+            console.log('Switching to tab:', tab);
             // Update tab buttons
             const tabs = document.querySelectorAll('.auth-tab');
             tabs.forEach(t => t.classList.remove('active'));
@@ -309,7 +324,13 @@
 
         async function handleSignIn(event) {
             event.preventDefault();
+            console.log('Sign in attempt');
             hideMessages();
+
+            if (!authManager) {
+                showError('Authentication system not available. Please use guest mode or try again later.');
+                return;
+            }
 
             const email = document.getElementById('signin-email').value;
             const password = document.getElementById('signin-password').value;
@@ -318,15 +339,22 @@
             btn.disabled = true;
             btn.textContent = 'Signing in...';
 
-            const result = await authManager.signIn(email, password);
+            try {
+                const result = await authManager.signIn(email, password);
 
-            if (result.success) {
-                showSuccess('Sign in successful! Redirecting...');
-                setTimeout(() => {
-                    window.location.href = 'dashboard.html';
-                }, 1000);
-            } else {
-                showError(result.error || 'Sign in failed. Please check your credentials.');
+                if (result.success) {
+                    showSuccess('Sign in successful! Redirecting...');
+                    setTimeout(() => {
+                        window.location.href = 'dashboard.html';
+                    }, 1000);
+                } else {
+                    showError(result.error || 'Sign in failed. Please check your credentials.');
+                    btn.disabled = false;
+                    btn.textContent = 'Sign In';
+                }
+            } catch (error) {
+                console.error('Sign in error:', error);
+                showError('Sign in failed. Please try guest mode or try again later.');
                 btn.disabled = false;
                 btn.textContent = 'Sign In';
             }
@@ -334,7 +362,13 @@
 
         async function handleSignUp(event) {
             event.preventDefault();
+            console.log('Sign up attempt');
             hideMessages();
+
+            if (!authManager) {
+                showError('Authentication system not available. Please use guest mode or try again later.');
+                return;
+            }
 
             const name = document.getElementById('signup-name').value;
             const email = document.getElementById('signup-email').value;
@@ -348,19 +382,32 @@
                 return;
             }
 
+            // Validate password length
+            if (password.length < 6) {
+                showError('Password must be at least 6 characters');
+                return;
+            }
+
             btn.disabled = true;
             btn.textContent = 'Creating account...';
 
-            const result = await authManager.signUp(email, password, { name });
+            try {
+                const result = await authManager.signUp(email, password, { name });
 
-            if (result.success) {
-                showSuccess('Account created successfully! Redirecting to dashboard...');
-                document.getElementById('signupForm').reset();
-                setTimeout(() => {
-                    window.location.href = 'dashboard.html';
-                }, 1500);
-            } else {
-                showError(result.error || 'Sign up failed. Please try again.');
+                if (result.success) {
+                    showSuccess('Account created successfully! Redirecting to dashboard...');
+                    document.getElementById('signupForm').reset();
+                    setTimeout(() => {
+                        window.location.href = 'dashboard.html';
+                    }, 1500);
+                } else {
+                    showError(result.error || 'Sign up failed. Please try again.');
+                    btn.disabled = false;
+                    btn.textContent = 'Sign Up';
+                }
+            } catch (error) {
+                console.error('Sign up error:', error);
+                showError('Sign up failed: ' + (error.message || 'Please try guest mode or try again later.'));
                 btn.disabled = false;
                 btn.textContent = 'Sign Up';
             }
@@ -383,6 +430,11 @@
         }
 
         function showForgotPassword() {
+            if (!authManager) {
+                alert('Authentication system not available. Please use guest mode or try again later.');
+                return;
+            }
+
             const email = prompt('Enter your email address to reset your password:');
             if (email) {
                 authManager.resetPassword(email).then(result => {
@@ -391,17 +443,21 @@
                     } else {
                         showError(result.error);
                     }
+                }).catch(error => {
+                    showError('Password reset failed: ' + error.message);
                 });
             }
         }
 
         function showError(message) {
+            console.log('Showing error:', message);
             const errorEl = document.getElementById('errorMessage');
             errorEl.textContent = message;
             errorEl.style.display = 'block';
         }
 
         function showSuccess(message) {
+            console.log('Showing success:', message);
             const successEl = document.getElementById('successMessage');
             successEl.textContent = message;
             successEl.style.display = 'block';
@@ -413,16 +469,25 @@
         }
 
         function continueAsGuest() {
-            // Set guest mode flag in localStorage
-            localStorage.setItem('guestMode', 'true');
-            localStorage.setItem('guestUser', JSON.stringify({
-                id: 'guest-' + Date.now(),
-                email: 'guest@local',
-                name: 'Guest User'
-            }));
+            console.log('Starting guest mode');
 
-            // Redirect to dashboard
-            window.location.href = 'dashboard.html';
+            try {
+                // Set guest mode flag in localStorage
+                localStorage.setItem('guestMode', 'true');
+                localStorage.setItem('guestUser', JSON.stringify({
+                    id: 'guest-' + Date.now(),
+                    email: 'guest@local',
+                    name: 'Guest User'
+                }));
+
+                console.log('Guest mode set, redirecting...');
+
+                // Redirect to dashboard
+                window.location.href = 'dashboard.html';
+            } catch (error) {
+                console.error('Guest mode error:', error);
+                alert('Failed to start guest mode: ' + error.message);
+            }
         }
     </script>
 </body>
