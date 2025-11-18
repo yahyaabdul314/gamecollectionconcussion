@@ -561,38 +561,61 @@
 
         // Initialize
         document.addEventListener('DOMContentLoaded', async function() {
-            // Check for guest mode
-            const isGuestMode = localStorage.getItem('guestMode') === 'true';
+            console.log('🚀 Dashboard loading...');
 
-            if (isGuestMode) {
-                // Guest mode - use localStorage
-                const guestUser = JSON.parse(localStorage.getItem('guestUser'));
-                document.getElementById('userEmail').textContent = 'Guest User';
-                document.getElementById('userName').textContent = 'Guest';
-                document.getElementById('guestBadge').style.display = 'inline-block';
-            } else {
-                // Regular authenticated mode
-                initSupabase();
-                authManager = getAuthManager();
+            try {
+                // Check for guest mode
+                const isGuestMode = localStorage.getItem('guestMode') === 'true';
+                console.log('Guest mode:', isGuestMode);
 
-                // Check auth
-                const user = await authManager.getCurrentUser();
-                if (!user) {
-                    window.location.href = 'auth.html';
-                    return;
+                if (isGuestMode) {
+                    // Guest mode - use localStorage
+                    console.log('✅ Using guest mode');
+                    const guestUser = JSON.parse(localStorage.getItem('guestUser'));
+                    document.getElementById('userEmail').textContent = 'Guest User';
+                    document.getElementById('userName').textContent = 'Guest';
+                    document.getElementById('guestBadge').style.display = 'inline-block';
+                } else {
+                    // Regular authenticated mode
+                    console.log('🔐 Using authenticated mode');
+
+                    if (typeof initSupabase === 'function') {
+                        initSupabase();
+                        authManager = getAuthManager();
+
+                        // Check auth
+                        const user = await authManager.getCurrentUser();
+                        if (!user) {
+                            console.warn('No user found, redirecting to auth');
+                            window.location.href = 'auth.html';
+                            return;
+                        }
+
+                        // Update user info
+                        document.getElementById('userEmail').textContent = user.email;
+                        document.getElementById('userName').textContent = user.email.split('@')[0];
+                    } else {
+                        console.error('Supabase not available');
+                        alert('Authentication system unavailable. Please try guest mode.');
+                        window.location.href = 'auth.html';
+                        return;
+                    }
                 }
 
-                // Update user info
-                document.getElementById('userEmail').textContent = user.email;
-                document.getElementById('userName').textContent = user.email.split('@')[0];
+                // Initialize tracker
+                console.log('📊 Initializing tracker...');
+                tracker = new ProgressionTracker();
+                await tracker.initialize();
+                console.log('✅ Tracker initialized');
+
+                // Load dashboard
+                console.log('📱 Loading dashboard...');
+                await loadDashboard();
+                console.log('✅ Dashboard loaded');
+            } catch (error) {
+                console.error('❌ Dashboard initialization error:', error);
+                alert('Error loading dashboard: ' + error.message);
             }
-
-            // Initialize tracker
-            tracker = new ProgressionTracker();
-            await tracker.initialize();
-
-            // Load dashboard
-            await loadDashboard();
         });
 
         async function loadDashboard() {

@@ -103,8 +103,19 @@
             const password = document.getElementById('signin-password').value;
             const btn = document.getElementById('signinBtn');
 
+            // Try to initialize authManager if not set
+            if (!authManager && typeof initSupabase === 'function' && typeof getAuthManager === 'function') {
+                console.log('🔄 Initializing auth manager...');
+                try {
+                    initSupabase();
+                    authManager = getAuthManager();
+                } catch (error) {
+                    console.error('Failed to init auth:', error);
+                }
+            }
+
             if (!authManager) {
-                showError('Please use guest mode');
+                showError('Authentication unavailable. Please use guest mode or refresh the page.');
                 return;
             }
 
@@ -123,7 +134,7 @@
                 }
             } catch (error) {
                 console.error('Sign in error:', error);
-                showError('Sign in failed. Try guest mode.');
+                showError('Sign in failed: ' + error.message);
                 btn.disabled = false;
                 btn.textContent = 'Sign In';
             }
@@ -151,8 +162,19 @@
                 return;
             }
 
+            // Try to initialize authManager if not set
+            if (!authManager && typeof initSupabase === 'function' && typeof getAuthManager === 'function') {
+                console.log('🔄 Initializing auth manager...');
+                try {
+                    initSupabase();
+                    authManager = getAuthManager();
+                } catch (error) {
+                    console.error('Failed to init auth:', error);
+                }
+            }
+
             if (!authManager) {
-                showError('Please use guest mode');
+                showError('Authentication unavailable. Please use guest mode or refresh the page.');
                 return;
             }
 
@@ -172,7 +194,7 @@
                 }
             } catch (error) {
                 console.error('Sign up error:', error);
-                showError('Sign up failed. Try guest mode.');
+                showError('Sign up failed: ' + error.message);
                 btn.disabled = false;
                 btn.textContent = 'Sign Up';
             }
