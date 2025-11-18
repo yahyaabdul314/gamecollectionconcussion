@@ -365,3 +365,222 @@ class PhysicsDisplay {
         this.scene.remove(this.textMesh);
     }
 }
+
+// Game Session Tracker Class
+class GameSessionTracker {
+    constructor(gameName, gameCategory) {
+        this.gameName = gameName;
+        this.gameCategory = gameCategory;
+        this.sessionStart = null;
+        this.sessionEnd = null;
+        this.score = 0;
+        this.difficulty = 'easy';
+        this.completed = false;
+        this.metrics = {};
+        this.physicsData = null;
+        this.isTracking = false;
+    }
+
+    /**
+     * Start tracking a game session
+     */
+    startSession() {
+        this.sessionStart = Date.now();
+        this.isTracking = true;
+        console.log(`Session started for ${this.gameName}`);
+    }
+
+    /**
+     * Update score during gameplay
+     */
+    updateScore(score) {
+        this.score = score;
+    }
+
+    /**
+     * Set difficulty level
+     */
+    setDifficulty(difficulty) {
+        this.difficulty = difficulty;
+    }
+
+    /**
+     * Mark session as completed
+     */
+    markCompleted() {
+        this.completed = true;
+    }
+
+    /**
+     * Add custom metrics
+     */
+    addMetric(key, value) {
+        this.metrics[key] = value;
+    }
+
+    /**
+     * Add physics data from PhysicsTracker
+     */
+    setPhysicsData(physicsData) {
+        this.physicsData = physicsData;
+    }
+
+    /**
+     * End the session and save to progression tracker
+     */
+    endSession() {
+        if (!this.isTracking) {
+            console.warn('Session not started or already ended');
+            return;
+        }
+
+        this.sessionEnd = Date.now();
+        this.isTracking = false;
+
+        const duration = Math.floor((this.sessionEnd - this.sessionStart) / 1000); // in seconds
+
+        const sessionData = {
+            gameName: this.gameName,
+            gameCategory: this.gameCategory,
+            duration: duration,
+            difficulty: this.difficulty,
+            score: this.score,
+            completed: this.completed,
+            metrics: this.metrics,
+            physicsData: this.physicsData
+        };
+
+        // Try to record to progression tracker if available
+        try {
+            // Load progression tracker script if not already loaded
+            if (typeof ProgressionTracker === 'undefined') {
+                console.log('ProgressionTracker not loaded, session data will not be saved');
+                return sessionData;
+            }
+
+            const tracker = new ProgressionTracker();
+            tracker.recordSession(sessionData);
+            console.log('Session recorded successfully:', sessionData);
+        } catch (error) {
+            console.error('Error recording session:', error);
+        }
+
+        return sessionData;
+    }
+
+    /**
+     * Get current session duration
+     */
+    getCurrentDuration() {
+        if (!this.isTracking) return 0;
+        return Math.floor((Date.now() - this.sessionStart) / 1000);
+    }
+
+    /**
+     * Create a back button with session tracking
+     */
+    static createBackButtonWithTracking(tracker) {
+        const backButton = document.createElement('button');
+        backButton.textContent = '← Back to Games';
+        backButton.className = 'back-button';
+        backButton.style.cssText = `
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            z-index: 1000;
+            transition: all 0.3s ease;
+            font-weight: bold;
+        `;
+
+        backButton.addEventListener('mouseover', () => {
+            backButton.style.transform = 'translateY(-2px)';
+            backButton.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.4)';
+        });
+
+        backButton.addEventListener('mouseout', () => {
+            backButton.style.transform = 'translateY(0)';
+            backButton.style.boxShadow = 'none';
+        });
+
+        backButton.addEventListener('click', () => {
+            // End session before navigating away
+            if (tracker && tracker.isTracking) {
+                tracker.endSession();
+            }
+            window.location.href = '../index.html';
+        });
+
+        document.body.appendChild(backButton);
+        return backButton;
+    }
+
+    /**
+     * Create a session info overlay
+     */
+    static createSessionInfoOverlay(tracker) {
+        const overlay = document.createElement('div');
+        overlay.className = 'session-info-overlay';
+        overlay.style.cssText = `
+            position: fixed;
+            top: 80px;
+            left: 20px;
+            padding: 15px 20px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            border-radius: 10px;
+            font-family: Arial, sans-serif;
+            z-index: 1000;
+            min-width: 200px;
+        `;
+
+        overlay.innerHTML = `
+            <div style="font-size: 14px; margin-bottom: 5px; opacity: 0.8;">Session Info</div>
+            <div style="font-size: 18px; font-weight: bold;" id="session-duration">0:00</div>
+            <div style="font-size: 16px; margin-top: 5px;">Score: <span id="session-score">0</span></div>
+        `;
+
+        document.body.appendChild(overlay);
+
+        // Update duration every second
+        const updateInterval = setInterval(() => {
+            if (!tracker || !tracker.isTracking) {
+                clearInterval(updateInterval);
+                return;
+            }
+
+            const duration = tracker.getCurrentDuration();
+            const minutes = Math.floor(duration / 60);
+            const seconds = duration % 60;
+            const durationElement = document.getElementById('session-duration');
+            if (durationElement) {
+                durationElement.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            }
+
+            const scoreElement = document.getElementById('session-score');
+            if (scoreElement) {
+                scoreElement.textContent = tracker.score;
+            }
+        }, 1000);
+
+        return overlay;
+    }
+}
+
+// Auto-end session when page unloads
+window.addEventListener('beforeunload', (event) => {
+    // Try to save any active sessions
+    try {
+        if (typeof window.gameSessionTracker !== 'undefined' && window.gameSessionTracker && window.gameSessionTracker.isTracking) {
+            window.gameSessionTracker.endSession();
+        }
+    } catch (error) {
+        console.error('Error saving session on unload:', error);
+    }
+});

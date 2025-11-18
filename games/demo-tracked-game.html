@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo Tracked Game - Progression Tracking Example</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+
+        .instructions {
+            position: fixed;
+            top: 150px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            border-radius: 10px;
+            max-width: 300px;
+            z-index: 999;
+        }
+
+        .instructions h3 {
+            margin-top: 0;
+            color: #667eea;
+        }
+
+        .instructions ul {
+            padding-left: 20px;
+        }
+
+        .instructions li {
+            margin: 8px 0;
+        }
+
+        .complete-btn {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 15px 30px;
+            background: linear-gradient(135deg, #50C878 0%, #43e97b 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 1000;
+            transition: all 0.3s ease;
+        }
+
+        .complete-btn:hover {
+            transform: translateX(-50%) translateY(-2px);
+            box-shadow: 0 4px 12px rgba(80, 200, 120, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <div class="instructions">
+        <h3>📊 Progression Tracking Demo</h3>
+        <p>This game demonstrates automatic session tracking:</p>
+        <ul>
+            <li>✅ Session starts automatically</li>
+            <li>📈 Score updates in real-time</li>
+            <li>⏱️ Duration tracked continuously</li>
+            <li>🎯 Click spheres to increase score</li>
+            <li>✔️ Click "Complete" when done</li>
+        </ul>
+        <p><small>Check the Progression Dashboard after playing!</small></p>
+    </div>
+
+    <button class="complete-btn" onclick="completeSession()">✓ Complete Session</button>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.150.0/build/three.module.js"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/three@0.150.0/build/three.min.js"></script>
+    <script src="../progression-tracker.js"></script>
+    <script src="webxr-utils.js"></script>
+
+    <script>
+        // Initialize game session tracker
+        const gameTracker = new GameSessionTracker('Demo Tracked Game', 'coordination');
+        window.gameSessionTracker = gameTracker; // Make it global for auto-save on page unload
+
+        // Start tracking the session
+        gameTracker.startSession();
+        console.log('Session tracking started!');
+
+        // Create back button with tracking integration
+        GameSessionTracker.createBackButtonWithTracking(gameTracker);
+
+        // Create session info overlay
+        GameSessionTracker.createSessionInfoOverlay(gameTracker);
+
+        // Set up Three.js scene
+        const scene = WebXRUtils.createScene();
+        scene.background = new THREE.Color(0x87CEEB); // Sky blue background
+
+        const camera = WebXRUtils.createCamera();
+        const renderer = WebXRUtils.createRenderer();
+
+        // Add lighting
+        WebXRUtils.addLighting(scene);
+
+        // Create floor
+        WebXRUtils.createFloor(scene, 20, 0x90EE90);
+
+        // Add instructional text in VR
+        const instructionText = WebXRUtils.createText(
+            'Click the floating spheres!',
+            0.3,
+            0xffffff,
+            { x: 0, y: 2.5, z: -3 }
+        );
+        scene.add(instructionText);
+
+        // Game state
+        let score = 0;
+        let spheres = [];
+        let clickedSpheres = 0;
+
+        // Create clickable spheres
+        function createSpheres() {
+            const colors = [0xff0000, 0x00ff00, 0x0000ff, 0xffff00, 0xff00ff, 0x00ffff];
+
+            for (let i = 0; i < 6; i++) {
+                const angle = (i / 6) * Math.PI * 2;
+                const radius = 2;
+                const sphere = WebXRUtils.createSphere(
+                    0.15,
+                    colors[i],
+                    {
+                        x: Math.cos(angle) * radius,
+                        y: 1.6 + Math.sin(i * 0.5) * 0.3,
+                        z: Math.sin(angle) * radius - 2
+                    }
+                );
+
+                sphere.userData.clickable = true;
+                sphere.userData.clicked = false;
+                sphere.userData.originalColor = colors[i];
+                spheres.push(sphere);
+                scene.add(sphere);
+            }
+        }
+
+        createSpheres();
+
+        // Score display
+        const scoreText = WebXRUtils.createText(
+            `Score: ${score}`,
+            0.25,
+            0xffffff,
+            { x: 0, y: 3, z: -3 }
+        );
+        scene.add(scoreText);
+
+        // Update score display
+        function updateScoreDisplay() {
+            scene.remove(scoreText);
+            const newScoreText = WebXRUtils.createText(
+                `Score: ${score}`,
+                0.25,
+                0xffffff,
+                { x: 0, y: 3, z: -3 }
+            );
+            scene.add(newScoreText);
+
+            // Update tracker
+            gameTracker.updateScore(score);
+        }
+
+        // Handle sphere clicks
+        function handleSphereClick(sphere) {
+            if (!sphere.userData.clicked) {
+                sphere.userData.clicked = true;
+                score += 100;
+                clickedSpheres++;
+
+                // Change color to gold when clicked
+                sphere.material.color.setHex(0xFFD700);
+
+                // Play success sound
+                WebXRUtils.playSound(800, 0.2, 'sine');
+
+                // Update score display
+                updateScoreDisplay();
+
+                // Add custom metric
+                gameTracker.addMetric('spheresClicked', clickedSpheres);
+                gameTracker.addMetric('accuracy', (clickedSpheres / 6 * 100).toFixed(1));
+
+                // Animate sphere
+                const originalY = sphere.position.y;
+                let time = 0;
+                const animateInterval = setInterval(() => {
+                    time += 0.05;
+                    sphere.position.y = originalY + Math.sin(time * 10) * 0.05;
+                    if (time > 0.5) {
+                        clearInterval(animateInterval);
+                        sphere.position.y = originalY;
+                    }
+                }, 16);
+
+                // Check if all spheres clicked
+                if (clickedSpheres === 6) {
+                    setTimeout(() => {
+                        alert('Perfect! All spheres clicked! 🎉');
+                        gameTracker.markCompleted();
+                    }, 500);
+                }
+            }
+        }
+
+        // Raycaster for mouse/touch interaction
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+
+        window.addEventListener('click', (event) => {
+            // Calculate mouse position in normalized device coordinates
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            // Update the raycaster
+            raycaster.setFromCamera(mouse, camera);
+
+            // Check for intersections
+            const intersects = raycaster.intersectObjects(spheres);
+
+            if (intersects.length > 0) {
+                const sphere = intersects[0].object;
+                if (sphere.userData.clickable) {
+                    handleSphereClick(sphere);
+                }
+            }
+        });
+
+        // VR Controllers
+        const controller1 = WebXRUtils.createController(renderer, 0);
+        const controller2 = WebXRUtils.createController(renderer, 1);
+        scene.add(controller1);
+        scene.add(controller2);
+
+        controller1.addEventListener('select', () => {
+            const intersects = raycaster.intersectObjects(spheres);
+            if (intersects.length > 0) {
+                handleSphereClick(intersects[0].object);
+            }
+        });
+
+        controller2.addEventListener('select', () => {
+            const intersects = raycaster.intersectObjects(spheres);
+            if (intersects.length > 0) {
+                handleSphereClick(intersects[0].object);
+            }
+        });
+
+        // Animation loop
+        let time = 0;
+        function animate() {
+            time += 0.01;
+
+            // Animate spheres (gentle floating)
+            spheres.forEach((sphere, index) => {
+                if (!sphere.userData.clicked) {
+                    const offset = index * Math.PI / 3;
+                    sphere.position.y += Math.sin(time * 2 + offset) * 0.002;
+                }
+            });
+
+            renderer.render(scene, camera);
+        }
+
+        renderer.setAnimationLoop(animate);
+
+        // Handle window resize
+        WebXRUtils.handleWindowResize(camera, renderer);
+
+        // Complete session function
+        window.completeSession = function() {
+            if (score > 0) {
+                gameTracker.markCompleted();
+            }
+
+            const sessionData = gameTracker.endSession();
+
+            alert(`Session Complete!\n\nDuration: ${Math.floor(sessionData.duration / 60)}m ${sessionData.duration % 60}s\nScore: ${score}\n\nCheck your Progression Dashboard!`);
+
+            // Navigate back to main page
+            window.location.href = '../progression.html';
+        };
+
+        // Add some helpful console logs
+        console.log('=== Demo Tracked Game ===');
+        console.log('Session ID:', gameTracker.sessionStart);
+        console.log('Game:', gameTracker.gameName);
+        console.log('Category:', gameTracker.gameCategory);
+        console.log('Tracking active:', gameTracker.isTracking);
+        console.log('========================');
+    </script>
+</body>
+</html>

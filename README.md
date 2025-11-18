@@ -46,6 +46,66 @@ These games are designed to assist in concussion recovery by providing:
 19. **Meditation Space** - Quiet virtual space for relaxation
 20. **Nature Walk** - Gentle walk through calming natural scenery
 
+## 📊 Progression Tracking System
+
+The VR Concussion Recovery platform now includes a comprehensive **Progression Tracker** that helps you monitor your recovery journey:
+
+### Key Features
+
+- **Session Tracking**: Automatically records every game session with duration, score, and completion status
+- **Progress Dashboard**: Visual charts and statistics showing your recovery progress over time
+- **Milestones & Achievements**: Earn badges as you reach recovery milestones
+- **Personalized Recommendations**: Get AI-driven suggestions for which games to play next
+- **Goal Setting**: Set daily and weekly therapy goals and track your progress
+- **Category Analytics**: See which therapy areas you're focusing on most
+- **Integration with Assessments**: Connect game progress with clinical assessment results
+
+### How It Works
+
+1. **Automatic Tracking**: Games automatically record your sessions when you play
+2. **View Progress**: Click "View Progress" from the main menu to see your dashboard
+3. **Set Goals**: Customize your daily and weekly therapy targets
+4. **Track Milestones**: Earn achievements as you progress through recovery
+5. **Get Recommendations**: Receive personalized suggestions based on your activity
+
+### Progression Dashboard Includes
+
+- 📈 **Progress Charts**: Visual graphs showing sessions over time
+- 🎯 **Category Breakdown**: See which therapy areas you've practiced
+- 🏆 **Milestones**: Track achievements like "First Session", "Week Streak", etc.
+- 💡 **Smart Recommendations**: Suggestions for balanced training
+- ⏱️ **Session History**: Review all your past therapy sessions
+- 📊 **Goal Progress**: Daily and weekly goal completion tracking
+
+### For Game Developers
+
+To integrate progression tracking in custom games, use the `GameSessionTracker` class:
+
+```javascript
+// Include the progression tracker and webxr-utils
+<script src="../progression-tracker.js"></script>
+<script src="webxr-utils.js"></script>
+
+// Initialize tracker
+const tracker = new GameSessionTracker('Game Name', 'category');
+tracker.startSession();
+
+// During gameplay
+tracker.updateScore(currentScore);
+tracker.addMetric('customMetric', value);
+
+// When complete
+tracker.markCompleted();
+tracker.endSession(); // Automatically saves to progression tracker
+```
+
+### Privacy & Data
+
+- All progression data is stored **locally** in your browser
+- No data is sent to external servers
+- Export your data anytime as JSON
+- Reset your progress at any time from the dashboard
+
 ## 🚀 Getting Started
 
 ### Requirements
@@ -68,30 +128,40 @@ Simply open the `index.html` file in your browser. No build process or dependenc
 ```
 gamecollectionconcussion/
 ├── index.html                 # Main game selection page
+├── assessment.html            # Assessment suite hub
+├── progression.html           # NEW: Progression tracking dashboard
+├── progression-tracker.js     # NEW: Progression tracking module
 ├── styles.css                 # Styling for all pages
 ├── README.md                  # This file
-└── games/
-    ├── webxr-utils.js        # Shared WebXR utilities
-    ├── smooth-pursuit.html
-    ├── saccade-training.html
-    ├── focus-point.html
-    ├── peripheral-vision.html
-    ├── balance-beam.html
-    ├── spatial-memory.html
-    ├── room-navigation.html
-    ├── depth-perception.html
-    ├── color-memory.html
-    ├── pattern-match.html
-    ├── sequence-recall.html
-    ├── puzzle-assembly.html
-    ├── bubble-pop.html
-    ├── gentle-catch.html
-    ├── target-touch.html
-    ├── sound-localization.html
-    ├── breathing-garden.html
-    ├── color-therapy.html
-    ├── meditation-space.html
-    └── nature-walk.html
+├── games/
+│   ├── webxr-utils.js        # Shared WebXR utilities (includes GameSessionTracker)
+│   ├── smooth-pursuit.html
+│   ├── saccade-training.html
+│   ├── focus-point.html
+│   ├── peripheral-vision.html
+│   ├── balance-beam.html
+│   ├── spatial-memory.html
+│   ├── room-navigation.html
+│   ├── depth-perception.html
+│   ├── color-memory.html
+│   ├── pattern-match.html
+│   ├── sequence-recall.html
+│   ├── puzzle-assembly.html
+│   ├── bubble-pop.html
+│   ├── gentle-catch.html
+│   ├── target-touch.html
+│   ├── sound-localization.html
+│   ├── breathing-garden.html
+│   ├── color-therapy.html
+│   ├── meditation-space.html
+│   └── nature-walk.html
+└── assessment/
+    ├── symptom-checklist.html
+    ├── balance-bess.html
+    ├── voms-assessment.html
+    ├── reaction-time.html
+    ├── cognitive-test.html
+    └── results.html
 ```
 
 ## 💡 Usage Tips
@@ -101,8 +171,9 @@ gamecollectionconcussion/
 - **Choose appropriate difficulty** - Start with "Easy" games
 - **Take breaks** - Rest if you feel any discomfort
 - **Be consistent** - Regular, short sessions are better than long, infrequent ones
-- **Track progress** - Note which games become easier over time
+- **Track progress** - Use the Progression Tracker to monitor which games become easier over time
 - **Use headphones** - For games with spatial audio (Sound Localization)
+- **Review your data** - Check your progression dashboard regularly for insights and recommendations
 
 ### Recommended Progression:
 1. Week 1: Calming games (Breathing Garden, Color Therapy, Meditation Space)
