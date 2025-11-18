@@ -201,8 +201,8 @@
         <div class="success-message" id="successMessage"></div>
 
         <div class="auth-tabs">
-            <button class="auth-tab active" onclick="switchTab('signin')">Sign In</button>
-            <button class="auth-tab" onclick="switchTab('signup')">Sign Up</button>
+            <button class="auth-tab active" onclick="switchTab(event, 'signin')">Sign In</button>
+            <button class="auth-tab" onclick="switchTab(event, 'signup')">Sign Up</button>
         </div>
 
         <!-- Sign In Form -->
@@ -267,7 +267,7 @@
             }
         });
 
-        function switchTab(tab) {
+        function switchTab(event, tab) {
             // Update tab buttons
             const tabs = document.querySelectorAll('.auth-tab');
             tabs.forEach(t => t.classList.remove('active'));
