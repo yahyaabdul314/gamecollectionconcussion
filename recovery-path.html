@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recovery Path - Concussion Recovery VR</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .recovery-path-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .page-header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 40px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 20px;
+            color: white;
+        }
+
+        .page-header h1 {
+            font-size: 2.5em;
+            margin: 0 0 10px 0;
+        }
+
+        .page-header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+            margin: 10px 0;
+        }
+
+        .injury-date-section {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .injury-date-section h3 {
+            margin-top: 0;
+            color: #667eea;
+        }
+
+        .date-input-group {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-top: 15px;
+        }
+
+        .date-input-group input[type="date"] {
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1em;
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .days-since {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+            padding: 20px;
+            background: linear-gradient(135deg, #f5f7fa 0%, #e3e8f0 100%);
+            border-radius: 12px;
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .days-since span {
+            display: block;
+            font-size: 0.4em;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .current-phase-overview {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border-left: 5px solid var(--phase-color);
+        }
+
+        .phase-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .phase-icon {
+            font-size: 3em;
+        }
+
+        .phase-info h2 {
+            margin: 0;
+            color: var(--phase-color);
+        }
+
+        .phase-info p {
+            margin: 5px 0 0 0;
+            color: #666;
+        }
+
+        .progress-requirements {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 25px;
+        }
+
+        .requirement-card {
+            background: #f5f7fa;
+            padding: 20px;
+            border-radius: 12px;
+            border-left: 4px solid var(--phase-color);
+        }
+
+        .requirement-card h4 {
+            margin: 0 0 10px 0;
+            color: #333;
+            font-size: 0.95em;
+        }
+
+        .requirement-progress {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .requirement-bar {
+            width: 100%;
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .requirement-bar-fill {
+            height: 100%;
+            background: var(--phase-color);
+            transition: width 0.3s ease;
+        }
+
+        .requirement-status {
+            margin-top: 8px;
+            font-size: 0.85em;
+        }
+
+        .requirement-status.completed {
+            color: #50C878;
+        }
+
+        .requirement-status.pending {
+            color: #FFB347;
+        }
+
+        .advance-button {
+            background: linear-gradient(135deg, #50C878 0%, #3da860 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.1em;
+            border-radius: 12px;
+            cursor: pointer;
+            margin-top: 20px;
+            display: block;
+            width: 100%;
+            font-weight: bold;
+            transition: transform 0.2s;
+        }
+
+        .advance-button:hover:not(:disabled) {
+            transform: translateY(-2px);
+        }
+
+        .advance-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .phase-roadmap {
+            margin-top: 40px;
+        }
+
+        .roadmap-title {
+            text-align: center;
+            font-size: 2em;
+            margin-bottom: 30px;
+            color: #333;
+        }
+
+        .phases-timeline {
+            position: relative;
+            padding: 20px 0;
+        }
+
+        .timeline-line {
+            position: absolute;
+            left: 50%;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background: #e0e0e0;
+            transform: translateX(-50%);
+            z-index: 0;
+        }
+
+        .phase-card {
+            position: relative;
+            margin-bottom: 40px;
+            z-index: 1;
+        }
+
+        .phase-card-content {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            width: calc(50% - 40px);
+            position: relative;
+            border: 3px solid transparent;
+        }
+
+        .phase-card:nth-child(odd) .phase-card-content {
+            margin-left: auto;
+            margin-right: calc(50% + 30px);
+        }
+
+        .phase-card:nth-child(even) .phase-card-content {
+            margin-left: calc(50% + 30px);
+        }
+
+        .phase-card.completed .phase-card-content {
+            border-color: #50C878;
+            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+        }
+
+        .phase-card.current .phase-card-content {
+            border-color: var(--phase-color);
+            background: linear-gradient(135deg, #fefefe 0%, #f5f7fa 100%);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .phase-card.locked .phase-card-content {
+            opacity: 0.6;
+            background: #f9fafb;
+        }
+
+        .phase-timeline-icon {
+            position: absolute;
+            top: 25px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60px;
+            height: 60px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2em;
+            border: 4px solid #e0e0e0;
+            z-index: 2;
+        }
+
+        .phase-card.completed .phase-timeline-icon {
+            border-color: #50C878;
+            background: #50C878;
+        }
+
+        .phase-card.current .phase-timeline-icon {
+            border-color: var(--phase-color);
+            background: var(--phase-color);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: translateX(-50%) scale(1); }
+            50% { transform: translateX(-50%) scale(1.1); }
+        }
+
+        .phase-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 15px;
+        }
+
+        .phase-card-title h3 {
+            margin: 0;
+            color: #333;
+            font-size: 1.4em;
+        }
+
+        .phase-card-title p {
+            margin: 5px 0;
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .phase-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: bold;
+        }
+
+        .phase-badge.completed {
+            background: #50C878;
+            color: white;
+        }
+
+        .phase-badge.current {
+            background: var(--phase-color);
+            color: white;
+        }
+
+        .phase-badge.locked {
+            background: #e0e0e0;
+            color: #666;
+        }
+
+        .phase-unlocks {
+            margin-top: 15px;
+        }
+
+        .phase-unlocks h4 {
+            font-size: 0.9em;
+            margin: 0 0 10px 0;
+            color: #666;
+        }
+
+        .unlock-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .unlock-tag {
+            background: var(--phase-color);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+        }
+
+        .phase-tips {
+            margin-top: 15px;
+            padding: 15px;
+            background: rgba(102, 126, 234, 0.1);
+            border-radius: 8px;
+        }
+
+        .phase-tips h4 {
+            margin: 0 0 10px 0;
+            font-size: 0.9em;
+            color: #667eea;
+        }
+
+        .phase-tips ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+
+        .phase-tips li {
+            font-size: 0.85em;
+            color: #555;
+            margin-bottom: 5px;
+        }
+
+        @media (max-width: 768px) {
+            .phase-card-content {
+                width: 100% !important;
+                margin-left: 0 !important;
+                margin-right: 0 !important;
+            }
+
+            .timeline-line {
+                left: 30px;
+            }
+
+            .phase-timeline-icon {
+                left: 30px;
+            }
+
+            .phases-timeline {
+                padding-left: 80px;
+            }
+        }
+
+        .loading {
+            text-align: center;
+            padding: 50px;
+            font-size: 1.2em;
+            color: #667eea;
+        }
+
+        .clinical-markers {
+            margin-top: 15px;
+            padding: 15px;
+            background: rgba(80, 200, 120, 0.1);
+            border-radius: 8px;
+        }
+
+        .clinical-markers h4 {
+            margin: 0 0 10px 0;
+            font-size: 0.9em;
+            color: #50C878;
+        }
+
+        .clinical-markers ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+
+        .clinical-markers li {
+            font-size: 0.85em;
+            color: #555;
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="recovery-path-container">
+        <div class="page-header">
+            <h1>🗺️ Your Recovery Journey</h1>
+            <p>A structured path to guide you from concussion to full recovery</p>
+            <div id="authSection" style="margin-top: 20px;"></div>
+        </div>
+
+        <div class="injury-date-section">
+            <h3>📅 Injury Timeline</h3>
+            <p>Track your recovery progress based on when your concussion occurred.</p>
+
+            <div class="date-input-group">
+                <label for="injuryDate"><strong>Injury Date:</strong></label>
+                <input type="date" id="injuryDate">
+                <button class="btn btn-primary" onclick="updateInjuryDate()">Update Date</button>
+            </div>
+
+            <div class="days-since" id="daysSince">
+                Loading...
+            </div>
+        </div>
+
+        <div id="currentPhaseSection" class="current-phase-overview" style="--phase-color: #667eea;">
+            <div class="loading">Loading your recovery path...</div>
+        </div>
+
+        <div class="phase-roadmap">
+            <h2 class="roadmap-title">Recovery Roadmap</h2>
+            <div class="phases-timeline">
+                <div class="timeline-line"></div>
+                <div id="phaseTimeline">
+                    <div class="loading">Loading phases...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+    <script src="progression-tracker.js"></script>
+    <script src="recovery-path.js"></script>
+    <script>
+        let pathManager = null;
+
+        async function initializePage() {
+            try {
+                // Initialize auth
+                await window.authManager.initialize();
+
+                // Show auth section
+                const authSection = document.getElementById('authSection');
+                if (window.authManager.currentUser) {
+                    authSection.innerHTML = `
+                        <div style="color: white;">
+                            Logged in as ${window.authManager.currentUser.email}
+                            <button onclick="window.authManager.signOut()" style="margin-left: 10px; padding: 8px 16px; border-radius: 8px; border: 2px solid white; background: transparent; color: white; cursor: pointer;">Sign Out</button>
+                        </div>
+                    `;
+                } else {
+                    authSection.innerHTML = `
+                        <button onclick="window.location.href='auth.html'" style="padding: 12px 24px; border-radius: 8px; border: 2px solid white; background: white; color: #667eea; cursor: pointer; font-weight: bold;">Login / Sign Up</button>
+                    `;
+                }
+
+                // Initialize recovery path
+                pathManager = new RecoveryPathManager();
+                await pathManager.initialize();
+
+                // Load injury date
+                const injuryDate = new Date(pathManager.pathData.custom_settings?.customInjuryDate || pathManager.pathData.injury_date);
+                document.getElementById('injuryDate').valueAsDate = injuryDate;
+
+                // Update UI
+                updateDaysSince();
+                await updateCurrentPhase();
+                await updatePhaseTimeline();
+
+            } catch (error) {
+                console.error('Error initializing page:', error);
+                alert('Error loading recovery path. Please refresh the page.');
+            }
+        }
+
+        function updateDaysSince() {
+            const days = pathManager.getDaysSinceInjury();
+            const daysSinceEl = document.getElementById('daysSince');
+            daysSinceEl.innerHTML = `
+                ${days}
+                <span>days since injury</span>
+            `;
+        }
+
+        async function updateInjuryDate() {
+            const dateInput = document.getElementById('injuryDate');
+            const selectedDate = dateInput.valueAsDate;
+
+            if (!selectedDate) {
+                alert('Please select a valid date');
+                return;
+            }
+
+            if (selectedDate > new Date()) {
+                alert('Injury date cannot be in the future');
+                return;
+            }
+
+            await pathManager.setInjuryDate(selectedDate);
+            updateDaysSince();
+            alert('Injury date updated successfully!');
+        }
+
+        async function updateCurrentPhase() {
+            const currentPhase = pathManager.getCurrentPhase();
+            const progress = await pathManager.checkPhaseProgress();
+
+            const section = document.getElementById('currentPhaseSection');
+            section.style.setProperty('--phase-color', currentPhase.color);
+
+            let requirementsHTML = '';
+
+            // Sessions requirement
+            const sessionsPercent = Math.min((progress.sessions.current / progress.sessions.required) * 100, 100);
+            requirementsHTML += `
+                <div class="requirement-card">
+                    <h4>Complete Sessions</h4>
+                    <div class="requirement-progress">
+                        <span>${progress.sessions.current} / ${progress.sessions.required}</span>
+                        <span>${Math.round(sessionsPercent)}%</span>
+                    </div>
+                    <div class="requirement-bar">
+                        <div class="requirement-bar-fill" style="width: ${sessionsPercent}%; background: ${currentPhase.color};"></div>
+                    </div>
+                    <div class="requirement-status ${progress.sessions.completed ? 'completed' : 'pending'}">
+                        ${progress.sessions.completed ? '✓ Completed' : 'In Progress'}
+                    </div>
+                </div>
+            `;
+
+            // Assessment requirement
+            if (currentPhase.goals.assessmentRequired) {
+                requirementsHTML += `
+                    <div class="requirement-card">
+                        <h4>Complete Assessment</h4>
+                        <div class="requirement-status ${progress.assessment.completed ? 'completed' : 'pending'}">
+                            ${progress.assessment.completed ? '✓ Completed' : '⚠ Required'}
+                        </div>
+                        ${!progress.assessment.completed ? '<a href="assessment.html" style="color: ' + currentPhase.color + '; text-decoration: none; font-size: 0.9em;">→ Take Assessment</a>' : ''}
+                    </div>
+                `;
+            }
+
+            // Streak requirement
+            if (progress.streak) {
+                const streakPercent = Math.min((progress.streak.current / progress.streak.required) * 100, 100);
+                requirementsHTML += `
+                    <div class="requirement-card">
+                        <h4>Maintain Streak</h4>
+                        <div class="requirement-progress">
+                            <span>${progress.streak.current} / ${progress.streak.required} days</span>
+                            <span>${Math.round(streakPercent)}%</span>
+                        </div>
+                        <div class="requirement-bar">
+                            <div class="requirement-bar-fill" style="width: ${streakPercent}%; background: ${currentPhase.color};"></div>
+                        </div>
+                        <div class="requirement-status ${progress.streak.completed ? 'completed' : 'pending'}">
+                            ${progress.streak.completed ? '✓ Completed' : 'Keep it up!'}
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Total time requirement
+            if (progress.totalTime) {
+                const timePercent = Math.min((progress.totalTime.current / progress.totalTime.required) * 100, 100);
+                requirementsHTML += `
+                    <div class="requirement-card">
+                        <h4>Total Practice Time</h4>
+                        <div class="requirement-progress">
+                            <span>${progress.totalTime.current} / ${progress.totalTime.required} minutes</span>
+                            <span>${Math.round(timePercent)}%</span>
+                        </div>
+                        <div class="requirement-bar">
+                            <div class="requirement-bar-fill" style="width: ${timePercent}%; background: ${currentPhase.color};"></div>
+                        </div>
+                        <div class="requirement-status ${progress.totalTime.completed ? 'completed' : 'pending'}">
+                            ${progress.totalTime.completed ? '✓ Completed' : 'In Progress'}
+                        </div>
+                    </div>
+                `;
+            }
+
+            section.innerHTML = `
+                <div class="phase-header">
+                    <div class="phase-icon">${currentPhase.icon}</div>
+                    <div class="phase-info">
+                        <h2>${currentPhase.name}</h2>
+                        <p>${currentPhase.subtitle} • ${currentPhase.duration}</p>
+                    </div>
+                </div>
+                <p style="font-size: 1.1em; color: #555; margin-bottom: 20px;">${currentPhase.description}</p>
+
+                <div style="background: ${currentPhase.color}22; padding: 15px; border-radius: 12px; margin-bottom: 20px;">
+                    <strong style="color: ${currentPhase.color};">Overall Progress: ${Math.round(progress.overallPercentage)}%</strong>
+                    <div class="requirement-bar" style="margin-top: 10px;">
+                        <div class="requirement-bar-fill" style="width: ${progress.overallPercentage}%; background: ${currentPhase.color};"></div>
+                    </div>
+                </div>
+
+                <h3 style="margin-top: 25px; margin-bottom: 15px; color: #333;">Phase Requirements</h3>
+                <div class="progress-requirements">
+                    ${requirementsHTML}
+                </div>
+
+                ${progress.dailyLimit ? `
+                    <div style="margin-top: 20px; padding: 15px; background: #fff3cd; border-radius: 12px; border-left: 4px solid #FFB347;">
+                        <strong>Daily Limit:</strong> ${progress.dailyLimit.todayCount} / ${progress.dailyLimit.limit} sessions today
+                        ${progress.dailyLimit.todayCount >= progress.dailyLimit.limit ? '<br><em>Daily limit reached. Rest and try again tomorrow!</em>' : ''}
+                    </div>
+                ` : ''}
+
+                <button class="advance-button" onclick="advanceToNextPhase()" ${!progress.canAdvance ? 'disabled' : ''}>
+                    ${progress.canAdvance ? '🎉 Advance to Next Phase' : '🔒 Complete Requirements to Advance'}
+                </button>
+
+                <div class="phase-tips">
+                    <h4>💡 Tips for This Phase</h4>
+                    <ul>
+                        ${currentPhase.tips.map(tip => `<li>${tip}</li>`).join('')}
+                    </ul>
+                </div>
+
+                <div class="clinical-markers">
+                    <h4>🏥 Clinical Markers to Watch For</h4>
+                    <ul>
+                        ${currentPhase.clinicalMarkers.map(marker => `<li>${marker}</li>`).join('')}
+                    </ul>
+                </div>
+            `;
+        }
+
+        async function updatePhaseTimeline() {
+            const timeline = document.getElementById('phaseTimeline');
+            const currentPhaseId = pathManager.pathData.current_phase;
+            const completedPhases = pathManager.pathData.completed_phases;
+
+            let html = '';
+
+            pathManager.recoveryPhases.forEach((phase, index) => {
+                const isCompleted = completedPhases.includes(phase.id);
+                const isCurrent = phase.id === currentPhaseId;
+                const isLocked = !isCompleted && !isCurrent;
+
+                let badgeClass = 'locked';
+                let badgeText = '🔒 Locked';
+
+                if (isCompleted) {
+                    badgeClass = 'completed';
+                    badgeText = '✓ Completed';
+                } else if (isCurrent) {
+                    badgeClass = 'current';
+                    badgeText = '▶ Current Phase';
+                }
+
+                const unlockedGames = phase.unlocks.games === 'all' ?
+                    ['All Games Unlocked!'] :
+                    phase.unlocks.games.slice(0, 3);
+
+                html += `
+                    <div class="phase-card ${isCompleted ? 'completed' : ''} ${isCurrent ? 'current' : ''} ${isLocked ? 'locked' : ''}" style="--phase-color: ${phase.color};">
+                        <div class="phase-timeline-icon">${phase.icon}</div>
+                        <div class="phase-card-content">
+                            <div class="phase-card-header">
+                                <div class="phase-card-title">
+                                    <h3>${phase.name}</h3>
+                                    <p>${phase.subtitle}</p>
+                                </div>
+                                <div class="phase-badge ${badgeClass}">${badgeText}</div>
+                            </div>
+
+                            <p style="color: #666; margin-bottom: 15px;">${phase.description}</p>
+
+                            <div style="display: flex; gap: 20px; margin-bottom: 15px; font-size: 0.9em;">
+                                <div>
+                                    <strong>Duration:</strong> ${phase.duration}
+                                </div>
+                                <div>
+                                    <strong>Sessions:</strong> ${phase.goals.sessions}
+                                </div>
+                            </div>
+
+                            ${!isLocked ? `
+                                <div class="phase-unlocks">
+                                    <h4>🎮 Unlocked Games:</h4>
+                                    <div class="unlock-list">
+                                        ${unlockedGames.map(game => `<span class="unlock-tag" style="background: ${phase.color};">${game}</span>`).join('')}
+                                        ${phase.unlocks.games !== 'all' && phase.unlocks.games.length > 3 ? `<span class="unlock-tag" style="background: ${phase.color};">+${phase.unlocks.games.length - 3} more</span>` : ''}
+                                    </div>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            });
+
+            timeline.innerHTML = html;
+        }
+
+        async function advanceToNextPhase() {
+            if (!confirm('Are you ready to advance to the next phase? Make sure you feel comfortable with your current progress.')) {
+                return;
+            }
+
+            const result = await pathManager.advancePhase();
+
+            if (result.success) {
+                alert(`🎉 Congratulations! You've advanced to ${result.nextPhase.name}!`);
+                await updateCurrentPhase();
+                await updatePhaseTimeline();
+            } else {
+                alert(result.message);
+            }
+        }
+
+        // Initialize on page load
+        window.addEventListener('DOMContentLoaded', initializePage);
+    </script>
+</body>
+</html>
