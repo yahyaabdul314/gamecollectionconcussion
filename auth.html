@@ -4,8 +4,221 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - VR Concussion Recovery</title>
-    <!-- Build: v1.1 - Functions now in HEAD -->
+    <!-- Build: v1.2 - Functions BEFORE external scripts -->
     <link rel="stylesheet" href="styles.css">
+
+    <!-- DEFINE CRITICAL FUNCTIONS FIRST - BEFORE ANY EXTERNAL SCRIPTS -->
+    <script>
+        console.log('🚀 Defining functions...');
+
+        // Global variables
+        let authManager;
+
+        // Switch between signin and signup tabs
+        function switchTab(tab) {
+            console.log('✅ switchTab called:', tab);
+
+            const tabs = document.querySelectorAll('.auth-tab');
+            tabs.forEach(t => t.classList.remove('active'));
+
+            if (tab === 'signin') {
+                tabs[0].classList.add('active');
+            } else {
+                tabs[1].classList.add('active');
+            }
+
+            const forms = document.querySelectorAll('.auth-form');
+            forms.forEach(f => f.classList.remove('active'));
+
+            if (tab === 'signin') {
+                document.getElementById('signinForm').classList.add('active');
+            } else {
+                document.getElementById('signupForm').classList.add('active');
+            }
+
+            hideMessages();
+        }
+
+        // Show error message
+        function showError(message) {
+            console.log('❌ Error:', message);
+            const errorEl = document.getElementById('errorMessage');
+            if (errorEl) {
+                errorEl.textContent = message;
+                errorEl.style.display = 'block';
+                setTimeout(() => errorEl.style.display = 'none', 5000);
+            }
+        }
+
+        // Show success message
+        function showSuccess(message) {
+            console.log('✅ Success:', message);
+            const successEl = document.getElementById('successMessage');
+            if (successEl) {
+                successEl.textContent = message;
+                successEl.style.display = 'block';
+            }
+        }
+
+        // Hide all messages
+        function hideMessages() {
+            const errorEl = document.getElementById('errorMessage');
+            const successEl = document.getElementById('successMessage');
+            if (errorEl) errorEl.style.display = 'none';
+            if (successEl) successEl.style.display = 'none';
+        }
+
+        // GUEST MODE - MUST ALWAYS WORK
+        function continueAsGuest() {
+            console.log('🎮 GUEST MODE: Starting...');
+
+            try {
+                localStorage.setItem('guestMode', 'true');
+                localStorage.setItem('guestUser', JSON.stringify({
+                    id: 'guest-' + Date.now(),
+                    email: 'guest@local',
+                    name: 'Guest User'
+                }));
+
+                console.log('✅ Guest data saved');
+                showSuccess('Guest mode activated! Redirecting...');
+
+                setTimeout(() => {
+                    console.log('🚀 Redirecting to dashboard...');
+                    window.location.href = 'dashboard.html';
+                }, 500);
+            } catch (error) {
+                console.error('❌ Guest mode error:', error);
+                alert('Error starting guest mode: ' + error.message);
+            }
+        }
+
+        // Handle sign in
+        async function handleSignIn(event) {
+            event.preventDefault();
+            console.log('📧 Sign in starting...');
+            hideMessages();
+
+            const email = document.getElementById('signin-email').value;
+            const password = document.getElementById('signin-password').value;
+            const btn = document.getElementById('signinBtn');
+
+            if (!authManager) {
+                showError('Please use guest mode');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'Signing in...';
+
+            try {
+                const result = await authManager.signIn(email, password);
+                if (result.success) {
+                    showSuccess('Success! Redirecting...');
+                    setTimeout(() => window.location.href = 'dashboard.html', 1000);
+                } else {
+                    showError(result.error || 'Sign in failed');
+                    btn.disabled = false;
+                    btn.textContent = 'Sign In';
+                }
+            } catch (error) {
+                console.error('Sign in error:', error);
+                showError('Sign in failed. Try guest mode.');
+                btn.disabled = false;
+                btn.textContent = 'Sign In';
+            }
+        }
+
+        // Handle sign up
+        async function handleSignUp(event) {
+            event.preventDefault();
+            console.log('📝 Sign up starting...');
+            hideMessages();
+
+            const name = document.getElementById('signup-name').value;
+            const email = document.getElementById('signup-email').value;
+            const password = document.getElementById('signup-password').value;
+            const confirm = document.getElementById('signup-confirm').value;
+            const btn = document.getElementById('signupBtn');
+
+            if (password !== confirm) {
+                showError('Passwords do not match');
+                return;
+            }
+
+            if (password.length < 6) {
+                showError('Password must be at least 6 characters');
+                return;
+            }
+
+            if (!authManager) {
+                showError('Please use guest mode');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'Creating account...';
+
+            try {
+                const result = await authManager.signUp(email, password, { name });
+                if (result.success) {
+                    showSuccess('Account created! Redirecting...');
+                    document.getElementById('signupForm').reset();
+                    setTimeout(() => window.location.href = 'dashboard.html', 1500);
+                } else {
+                    showError(result.error || 'Sign up failed');
+                    btn.disabled = false;
+                    btn.textContent = 'Sign Up';
+                }
+            } catch (error) {
+                console.error('Sign up error:', error);
+                showError('Sign up failed. Try guest mode.');
+                btn.disabled = false;
+                btn.textContent = 'Sign Up';
+            }
+        }
+
+        console.log('✅ All functions defined');
+    </script>
+
+    <!-- NOW load external scripts (won't break if these fail) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" onerror="console.warn('Supabase CDN failed')"></script>
+    <script src="supabase-config.js" onerror="console.warn('supabase-config.js failed')"></script>
+
+    <!-- Initialize after DOM loads -->
+    <script>
+        document.addEventListener('DOMContentLoaded', async function() {
+            console.log('📄 DOM loaded');
+
+            try {
+                if (typeof initSupabase === 'function') {
+                    console.log('✅ Initializing Supabase...');
+                    initSupabase();
+                    authManager = getAuthManager();
+
+                    const isAuth = await authManager.isAuthenticated();
+                    if (isAuth) {
+                        console.log('✅ Already authenticated');
+                        window.location.href = 'dashboard.html';
+                        return;
+                    }
+                } else {
+                    console.warn('⚠️ Supabase not available - guest mode only');
+                }
+            } catch (error) {
+                console.error('❌ Init error:', error);
+            }
+
+            // Auto-trigger guest mode from URL
+            if (window.location.hash === '#guest') {
+                console.log('🎮 Auto-starting guest mode from URL');
+                setTimeout(continueAsGuest, 500);
+            }
+
+            console.log('✅ Page ready');
+        });
+    </script>
+
     <style>
         .auth-container {
             max-width: 450px;
@@ -131,21 +344,6 @@
             display: none;
         }
 
-        .forgot-password {
-            text-align: center;
-            margin-top: 15px;
-        }
-
-        .forgot-password a {
-            color: #667eea;
-            text-decoration: none;
-            font-size: 14px;
-        }
-
-        .forgot-password a:hover {
-            text-decoration: underline;
-        }
-
         .guest-login {
             margin-top: 20px;
             padding-top: 20px;
@@ -173,240 +371,6 @@
             box-shadow: 0 4px 12px rgba(79, 172, 254, 0.4);
         }
     </style>
-
-    <!-- Load Supabase -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="supabase-config.js"></script>
-
-    <!-- Define ALL functions in HEAD so they're available immediately -->
-    <script>
-        // Global variables
-        let authManager;
-
-        // Switch between signin and signup tabs
-        function switchTab(tab) {
-            console.log('Switching to tab:', tab);
-
-            // Update tab buttons
-            const tabs = document.querySelectorAll('.auth-tab');
-            tabs.forEach(t => t.classList.remove('active'));
-
-            if (tab === 'signin') {
-                tabs[0].classList.add('active');
-            } else {
-                tabs[1].classList.add('active');
-            }
-
-            // Update forms
-            const forms = document.querySelectorAll('.auth-form');
-            forms.forEach(f => f.classList.remove('active'));
-
-            if (tab === 'signin') {
-                document.getElementById('signinForm').classList.add('active');
-            } else {
-                document.getElementById('signupForm').classList.add('active');
-            }
-
-            // Clear messages
-            hideMessages();
-        }
-
-        // Show error message
-        function showError(message) {
-            console.log('Showing error:', message);
-            const errorEl = document.getElementById('errorMessage');
-            if (errorEl) {
-                errorEl.textContent = message;
-                errorEl.style.display = 'block';
-
-                // Auto-hide after 5 seconds
-                setTimeout(() => {
-                    errorEl.style.display = 'none';
-                }, 5000);
-            }
-        }
-
-        // Show success message
-        function showSuccess(message) {
-            console.log('Showing success:', message);
-            const successEl = document.getElementById('successMessage');
-            if (successEl) {
-                successEl.textContent = message;
-                successEl.style.display = 'block';
-            }
-        }
-
-        // Hide all messages
-        function hideMessages() {
-            const errorEl = document.getElementById('errorMessage');
-            const successEl = document.getElementById('successMessage');
-            if (errorEl) errorEl.style.display = 'none';
-            if (successEl) successEl.style.display = 'none';
-        }
-
-        // Continue as guest - this MUST work
-        function continueAsGuest() {
-            console.log('=== GUEST MODE STARTING ===');
-
-            try {
-                // Set guest mode flag
-                localStorage.setItem('guestMode', 'true');
-                localStorage.setItem('guestUser', JSON.stringify({
-                    id: 'guest-' + Date.now(),
-                    email: 'guest@local',
-                    name: 'Guest User'
-                }));
-
-                console.log('✅ Guest data saved');
-                console.log('🚀 Redirecting to dashboard...');
-
-                // Show success
-                showSuccess('Guest mode activated! Redirecting...');
-
-                // Redirect
-                setTimeout(() => {
-                    window.location.href = 'dashboard.html';
-                }, 500);
-            } catch (error) {
-                console.error('❌ Guest mode error:', error);
-                alert('Error: ' + error.message);
-            }
-        }
-
-        // Handle sign in
-        async function handleSignIn(event) {
-            event.preventDefault();
-            console.log('=== SIGN IN STARTING ===');
-            hideMessages();
-
-            const email = document.getElementById('signin-email').value;
-            const password = document.getElementById('signin-password').value;
-            const btn = document.getElementById('signinBtn');
-
-            console.log('Email:', email);
-
-            if (!authManager) {
-                console.warn('No auth manager');
-                showError('Please use guest mode or try again later');
-                return;
-            }
-
-            btn.disabled = true;
-            btn.textContent = 'Signing in...';
-
-            try {
-                const result = await authManager.signIn(email, password);
-                console.log('Sign in result:', result);
-
-                if (result.success) {
-                    showSuccess('Success! Redirecting...');
-                    setTimeout(() => {
-                        window.location.href = 'dashboard.html';
-                    }, 1000);
-                } else {
-                    showError(result.error || 'Sign in failed');
-                    btn.disabled = false;
-                    btn.textContent = 'Sign In';
-                }
-            } catch (error) {
-                console.error('Sign in error:', error);
-                showError('Sign in failed. Try guest mode.');
-                btn.disabled = false;
-                btn.textContent = 'Sign In';
-            }
-        }
-
-        // Handle sign up
-        async function handleSignUp(event) {
-            event.preventDefault();
-            console.log('=== SIGN UP STARTING ===');
-            hideMessages();
-
-            const name = document.getElementById('signup-name').value;
-            const email = document.getElementById('signup-email').value;
-            const password = document.getElementById('signup-password').value;
-            const confirm = document.getElementById('signup-confirm').value;
-            const btn = document.getElementById('signupBtn');
-
-            console.log('Email:', email);
-
-            // Validate
-            if (password !== confirm) {
-                showError('Passwords do not match');
-                return;
-            }
-
-            if (password.length < 6) {
-                showError('Password must be at least 6 characters');
-                return;
-            }
-
-            if (!authManager) {
-                console.warn('No auth manager');
-                showError('Please use guest mode or try again later');
-                return;
-            }
-
-            btn.disabled = true;
-            btn.textContent = 'Creating account...';
-
-            try {
-                const result = await authManager.signUp(email, password, { name });
-                console.log('Sign up result:', result);
-
-                if (result.success) {
-                    showSuccess('Account created! Redirecting...');
-                    document.getElementById('signupForm').reset();
-                    setTimeout(() => {
-                        window.location.href = 'dashboard.html';
-                    }, 1500);
-                } else {
-                    showError(result.error || 'Sign up failed');
-                    btn.disabled = false;
-                    btn.textContent = 'Sign Up';
-                }
-            } catch (error) {
-                console.error('Sign up error:', error);
-                showError('Sign up failed. Try guest mode.');
-                btn.disabled = false;
-                btn.textContent = 'Sign Up';
-            }
-        }
-
-        // Initialize when DOM is ready
-        document.addEventListener('DOMContentLoaded', async function() {
-            console.log('=== AUTH PAGE LOADED ===');
-
-            try {
-                if (typeof initSupabase === 'function') {
-                    console.log('✅ Initializing Supabase...');
-                    initSupabase();
-                    authManager = getAuthManager();
-                    console.log('✅ Auth manager ready');
-
-                    // Check if already logged in
-                    const isAuth = await authManager.isAuthenticated();
-                    if (isAuth) {
-                        console.log('✅ Already authenticated, redirecting...');
-                        window.location.href = 'dashboard.html';
-                        return;
-                    }
-                } else {
-                    console.warn('⚠️ Supabase not available - guest mode only');
-                }
-            } catch (error) {
-                console.error('❌ Init error:', error);
-            }
-
-            // Auto-trigger guest mode if #guest in URL
-            if (window.location.hash === '#guest') {
-                console.log('🎮 Auto-starting guest mode from URL hash');
-                setTimeout(continueAsGuest, 500);
-            }
-
-            console.log('=== AUTH PAGE READY ===');
-        });
-    </script>
 </head>
 <body>
     <div class="auth-container">
