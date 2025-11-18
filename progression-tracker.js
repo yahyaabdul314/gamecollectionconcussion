@@ -24,16 +24,36 @@ class ProgressionTracker {
      * Initialize Supabase connection
      */
     async initializeSupabase() {
+        // Check if we're in guest mode - skip Supabase entirely
+        const isGuestMode = typeof localStorage !== 'undefined' && localStorage.getItem('guestMode') === 'true';
+        if (isGuestMode) {
+            console.log('Progression Tracker: Guest mode detected, using localStorage only');
+            this.useSupabase = false;
+            return;
+        }
+
+        // Try to initialize Supabase if available
         if (typeof getAuthManager === 'function') {
             try {
                 this.authManager = getAuthManager();
+
+                // Check if authManager has valid supabase client
+                if (!this.authManager || !this.authManager.supabase) {
+                    console.log('Progression Tracker: AuthManager has no Supabase client, falling back to localStorage');
+                    this.useSupabase = false;
+                    return;
+                }
+
                 this.currentUser = await this.authManager.getCurrentUser();
                 this.useSupabase = !!this.currentUser;
                 console.log('Progression Tracker:', this.useSupabase ? 'Using Supabase' : 'Using localStorage');
             } catch (error) {
-                console.log('Supabase not available, falling back to localStorage');
+                console.log('Progression Tracker: Supabase not available, falling back to localStorage:', error.message);
                 this.useSupabase = false;
             }
+        } else {
+            console.log('Progression Tracker: getAuthManager not available, using localStorage');
+            this.useSupabase = false;
         }
     }
 
@@ -600,21 +620,26 @@ class ProgressionTracker {
      */
     getCategoryProgress() {
         const categories = {
-            'visual': { name: 'Visual Tracking & Focus', sessions: 0, duration: 0, avgScore: 0 },
-            'balance': { name: 'Balance & Spatial Awareness', sessions: 0, duration: 0, avgScore: 0 },
-            'memory': { name: 'Memory & Cognitive Function', sessions: 0, duration: 0, avgScore: 0 },
-            'coordination': { name: 'Coordination & Gentle Reaction', sessions: 0, duration: 0, avgScore: 0 },
-            'calming': { name: 'Calming & Therapeutic', sessions: 0, duration: 0, avgScore: 0 }
+            'visual': { key: 'visual', name: 'Visual Tracking & Focus', sessions: 0, duration: 0, avgScore: 0 },
+            'balance': { key: 'balance', name: 'Balance & Spatial Awareness', sessions: 0, duration: 0, avgScore: 0 },
+            'memory': { key: 'memory', name: 'Memory & Cognitive Function', sessions: 0, duration: 0, avgScore: 0 },
+            'coordination': { key: 'coordination', name: 'Coordination & Gentle Reaction', sessions: 0, duration: 0, avgScore: 0 },
+            'calming': { key: 'calming', name: 'Calming & Therapeutic', sessions: 0, duration: 0, avgScore: 0 }
         };
 
-        this.data.sessions.forEach(session => {
-            const category = session.gameCategory;
-            if (categories[category]) {
-                categories[category].sessions++;
-                categories[category].duration += session.duration;
-                categories[category].avgScore += (session.score || 0);
-            }
-        });
+        // Add 'cognitive' as alias for 'memory' for backward compatibility
+        categories['cognitive'] = categories['memory'];
+
+        if (this.data && this.data.sessions) {
+            this.data.sessions.forEach(session => {
+                const category = session.gameCategory;
+                if (categories[category]) {
+                    categories[category].sessions++;
+                    categories[category].duration += session.duration;
+                    categories[category].avgScore += (session.score || 0);
+                }
+            });
+        }
 
         // Calculate averages
         Object.values(categories).forEach(cat => {

@@ -562,31 +562,60 @@
         // Initialize
         document.addEventListener('DOMContentLoaded', async function() {
             console.log('🚀 Dashboard loading...');
+            console.log('📍 Location:', window.location.href);
+            console.log('💾 localStorage keys:', Object.keys(localStorage));
 
             try {
                 // Check for guest mode
                 const isGuestMode = localStorage.getItem('guestMode') === 'true';
-                console.log('Guest mode:', isGuestMode);
+                console.log('🎮 Guest mode check:', isGuestMode);
+                console.log('💾 guestMode value:', localStorage.getItem('guestMode'));
 
                 if (isGuestMode) {
                     // Guest mode - use localStorage
-                    console.log('✅ Using guest mode');
-                    const guestUser = JSON.parse(localStorage.getItem('guestUser'));
-                    document.getElementById('userEmail').textContent = 'Guest User';
-                    document.getElementById('userName').textContent = 'Guest';
-                    document.getElementById('guestBadge').style.display = 'inline-block';
+                    console.log('✅ GUEST MODE ACTIVE');
+
+                    try {
+                        const guestUser = JSON.parse(localStorage.getItem('guestUser') || '{}');
+                        console.log('👤 Guest user data:', guestUser);
+
+                        document.getElementById('userEmail').textContent = 'Guest User';
+                        document.getElementById('userName').textContent = 'Guest';
+                        document.getElementById('guestBadge').style.display = 'inline-block';
+
+                        console.log('✅ Guest UI updated');
+                    } catch (parseError) {
+                        console.error('❌ Error parsing guest user:', parseError);
+                        document.getElementById('userEmail').textContent = 'Guest User';
+                        document.getElementById('userName').textContent = 'Guest';
+                        document.getElementById('guestBadge').style.display = 'inline-block';
+                    }
                 } else {
                     // Regular authenticated mode
-                    console.log('🔐 Using authenticated mode');
+                    console.log('🔐 AUTHENTICATED MODE');
 
-                    if (typeof initSupabase === 'function') {
+                    if (typeof supabase === 'undefined') {
+                        console.error('❌ Supabase CDN not loaded');
+                        alert('Authentication system unavailable. Please use guest mode.');
+                        window.location.href = 'auth.html';
+                        return;
+                    }
+
+                    if (typeof initSupabase === 'function' && typeof getAuthManager === 'function') {
                         initSupabase();
                         authManager = getAuthManager();
+
+                        if (!authManager || !authManager.supabase) {
+                            console.error('❌ Auth manager initialization failed');
+                            alert('Authentication system unavailable. Please use guest mode.');
+                            window.location.href = 'auth.html';
+                            return;
+                        }
 
                         // Check auth
                         const user = await authManager.getCurrentUser();
                         if (!user) {
-                            console.warn('No user found, redirecting to auth');
+                            console.warn('⚠️ No user found, redirecting to auth');
                             window.location.href = 'auth.html';
                             return;
                         }
@@ -594,8 +623,9 @@
                         // Update user info
                         document.getElementById('userEmail').textContent = user.email;
                         document.getElementById('userName').textContent = user.email.split('@')[0];
+                        console.log('✅ User authenticated:', user.email);
                     } else {
-                        console.error('Supabase not available');
+                        console.error('❌ Supabase functions not available');
                         alert('Authentication system unavailable. Please try guest mode.');
                         window.location.href = 'auth.html';
                         return;
@@ -603,18 +633,39 @@
                 }
 
                 // Initialize tracker
-                console.log('📊 Initializing tracker...');
+                console.log('📊 Initializing ProgressionTracker...');
+                console.log('🔍 Checking if ProgressionTracker exists:', typeof ProgressionTracker);
+
+                if (typeof ProgressionTracker === 'undefined') {
+                    throw new Error('ProgressionTracker not loaded. Check if progression-tracker.js is loading correctly.');
+                }
+
                 tracker = new ProgressionTracker();
+                console.log('📊 Tracker object created:', tracker);
+
                 await tracker.initialize();
-                console.log('✅ Tracker initialized');
+                console.log('✅ Tracker initialized successfully');
+                console.log('📊 Tracker data:', tracker.data);
 
                 // Load dashboard
-                console.log('📱 Loading dashboard...');
+                console.log('📱 Loading dashboard data...');
                 await loadDashboard();
-                console.log('✅ Dashboard loaded');
+                console.log('✅ Dashboard fully loaded!');
             } catch (error) {
-                console.error('❌ Dashboard initialization error:', error);
-                alert('Error loading dashboard: ' + error.message);
+                console.error('❌ DASHBOARD INITIALIZATION ERROR:', error);
+                console.error('❌ Error stack:', error.stack);
+
+                // Show error to user
+                const userEmail = document.getElementById('userEmail');
+                if (userEmail && userEmail.textContent === 'Loading...') {
+                    userEmail.textContent = 'Error';
+                }
+
+                alert('Error loading dashboard: ' + error.message + '\n\nPlease check the console (F12) for details, or try refreshing the page.');
+
+                // Show empty state at least
+                document.getElementById('emptyState').style.display = 'block';
+                document.getElementById('dashboardContent').style.display = 'none';
             }
         });
 

@@ -103,20 +103,36 @@
             const password = document.getElementById('signin-password').value;
             const btn = document.getElementById('signinBtn');
 
-            // Try to initialize authManager if not set
-            if (!authManager && typeof initSupabase === 'function' && typeof getAuthManager === 'function') {
-                console.log('🔄 Initializing auth manager...');
-                try {
-                    initSupabase();
-                    authManager = getAuthManager();
-                } catch (error) {
-                    console.error('Failed to init auth:', error);
-                }
+            // Check if Supabase CDN loaded
+            if (typeof supabase === 'undefined') {
+                console.error('❌ Supabase CDN not loaded');
+                showError('Authentication system unavailable. Please use Guest Mode instead.');
+                return;
             }
 
+            // Try to initialize authManager if not set
             if (!authManager) {
-                showError('Authentication unavailable. Please use guest mode or refresh the page.');
-                return;
+                console.log('🔄 Initializing auth manager...');
+                try {
+                    if (typeof initSupabase === 'function') {
+                        const client = initSupabase();
+                        if (!client) {
+                            throw new Error('Supabase client initialization failed');
+                        }
+                    }
+                    if (typeof getAuthManager === 'function') {
+                        authManager = getAuthManager();
+                        if (!authManager || !authManager.supabase) {
+                            throw new Error('Auth manager initialization failed');
+                        }
+                    } else {
+                        throw new Error('getAuthManager function not found');
+                    }
+                } catch (error) {
+                    console.error('❌ Failed to init auth:', error);
+                    showError('Authentication system unavailable. Please use Guest Mode instead.');
+                    return;
+                }
             }
 
             btn.disabled = true;
@@ -162,20 +178,36 @@
                 return;
             }
 
-            // Try to initialize authManager if not set
-            if (!authManager && typeof initSupabase === 'function' && typeof getAuthManager === 'function') {
-                console.log('🔄 Initializing auth manager...');
-                try {
-                    initSupabase();
-                    authManager = getAuthManager();
-                } catch (error) {
-                    console.error('Failed to init auth:', error);
-                }
+            // Check if Supabase CDN loaded
+            if (typeof supabase === 'undefined') {
+                console.error('❌ Supabase CDN not loaded');
+                showError('Authentication system unavailable. Please use Guest Mode instead.');
+                return;
             }
 
+            // Try to initialize authManager if not set
             if (!authManager) {
-                showError('Authentication unavailable. Please use guest mode or refresh the page.');
-                return;
+                console.log('🔄 Initializing auth manager...');
+                try {
+                    if (typeof initSupabase === 'function') {
+                        const client = initSupabase();
+                        if (!client) {
+                            throw new Error('Supabase client initialization failed');
+                        }
+                    }
+                    if (typeof getAuthManager === 'function') {
+                        authManager = getAuthManager();
+                        if (!authManager || !authManager.supabase) {
+                            throw new Error('Auth manager initialization failed');
+                        }
+                    } else {
+                        throw new Error('getAuthManager function not found');
+                    }
+                } catch (error) {
+                    console.error('❌ Failed to init auth:', error);
+                    showError('Authentication system unavailable. Please use Guest Mode instead.');
+                    return;
+                }
             }
 
             btn.disabled = true;
