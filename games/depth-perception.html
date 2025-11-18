@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Depth Perception - Concussion Recovery</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body class="vr-container">
+    <a href="../index.html" class="back-button">← Back to Games</a>
+
+    <div class="vr-info">
+        <h2>Depth Perception Training</h2>
+        <p>Spheres at different distances will appear. Observe and judge the distance of each object.</p>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.150.0/build/three.module.js';
+        import { VRButton } from 'https://cdn.jsdelivr.net/npm/three@0.150.0/examples/jsm/webxr/VRButton.js';
+
+        let scene, camera, renderer;
+        let depthObjects = [];
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x404040);
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 1.6, 0);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.xr.enabled = true;
+            document.body.appendChild(renderer.domElement);
+
+            document.body.appendChild(VRButton.createButton(renderer));
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+            scene.add(ambientLight);
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.6);
+            directionalLight.position.set(5, 10, 5);
+            scene.add(directionalLight);
+
+            // Add reference grid at different depths
+            for (let depth = 1; depth <= 5; depth++) {
+                const gridHelper = new THREE.GridHelper(5, 5, 0x888888, 0x444444);
+                gridHelper.position.z = -depth * 2;
+                scene.add(gridHelper);
+            }
+
+            // Create spheres at different depths
+            const distances = [1, 2, 3, 4, 5, 6, 7, 8];
+            const colors = [
+                0xff0000, 0x00ff00, 0x0000ff, 0xffff00,
+                0xff00ff, 0x00ffff, 0xff8800, 0x88ff00
+            ];
+
+            distances.forEach((distance, index) => {
+                const geometry = new THREE.SphereGeometry(0.15, 32, 32);
+                const material = new THREE.MeshStandardMaterial({
+                    color: colors[index % colors.length],
+                    emissive: colors[index % colors.length],
+                    emissiveIntensity: 0.2
+                });
+                const sphere = new THREE.Mesh(geometry, material);
+
+                // Distribute horizontally and at different depths
+                const angle = (index / distances.length) * Math.PI * 2;
+                sphere.position.set(
+                    Math.sin(angle) * 1.5,
+                    1.6 + Math.cos(angle) * 0.5,
+                    -distance
+                );
+
+                sphere.userData.distance = distance;
+                scene.add(sphere);
+                depthObjects.push(sphere);
+            });
+
+            // Add distance markers
+            distances.forEach(distance => {
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+                canvas.width = 256;
+                canvas.height = 128;
+
+                context.fillStyle = '#000000';
+                context.fillRect(0, 0, canvas.width, canvas.height);
+
+                context.font = 'Bold 48px Arial';
+                context.fillStyle = '#ffffff';
+                context.textAlign = 'center';
+                context.textBaseline = 'middle';
+                context.fillText(`${distance}m`, canvas.width / 2, canvas.height / 2);
+
+                const texture = new THREE.CanvasTexture(canvas);
+                const material = new THREE.MeshBasicMaterial({
+                    map: texture,
+                    transparent: true
+                });
+                const geometry = new THREE.PlaneGeometry(1, 0.5);
+                const mesh = new THREE.Mesh(geometry, material);
+                mesh.position.set(0, 0.5, -distance);
+                scene.add(mesh);
+            });
+
+            window.addEventListener('resize', onWindowResize);
+            renderer.setAnimationLoop(render);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function render() {
+            // Gentle movement to help perceive depth
+            depthObjects.forEach((obj, index) => {
+                const offset = index * 0.5;
+                const time = Date.now() * 0.001;
+
+                // Slow vertical movement
+                obj.position.y = 1.6 + Math.sin(time + offset) * 0.3;
+
+                // Gentle pulse
+                const scale = 1 + Math.sin(time * 2 + offset) * 0.1;
+                obj.scale.set(scale, scale, scale);
+            });
+
+            renderer.render(scene, camera);
+        }
+
+        init();
+    </script>
+</body>
+</html>

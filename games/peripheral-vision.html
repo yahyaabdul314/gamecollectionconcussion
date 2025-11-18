@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Peripheral Vision - Concussion Recovery</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body class="vr-container">
+    <a href="../index.html" class="back-button">← Back to Games</a>
+
+    <div class="vr-info">
+        <h2>Peripheral Vision Training</h2>
+        <p>Objects will appear at the edges of your vision. Try to notice them while keeping your gaze forward.</p>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.150.0/build/three.module.js';
+        import { VRButton } from 'https://cdn.jsdelivr.net/npm/three@0.150.0/examples/jsm/webxr/VRButton.js';
+
+        let scene, camera, renderer;
+        let centerMarker;
+        let peripheralTargets = [];
+        let score = 0;
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x34495e);
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 1.6, 0);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.xr.enabled = true;
+            document.body.appendChild(renderer.domElement);
+
+            document.body.appendChild(VRButton.createButton(renderer));
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+            scene.add(ambientLight);
+
+            // Center marker to focus on
+            const centerGeometry = new THREE.RingGeometry(0.03, 0.05, 32);
+            const centerMaterial = new THREE.MeshBasicMaterial({
+                color: 0xffffff,
+                side: THREE.DoubleSide
+            });
+            centerMarker = new THREE.Mesh(centerGeometry, centerMaterial);
+            centerMarker.position.set(0, 1.6, -2);
+            scene.add(centerMarker);
+
+            // Create peripheral target zones
+            createPeripheralTarget();
+
+            window.addEventListener('resize', onWindowResize);
+            renderer.setAnimationLoop(render);
+        }
+
+        function createPeripheralTarget() {
+            // Remove old targets
+            peripheralTargets.forEach(t => scene.remove(t));
+            peripheralTargets = [];
+
+            // Create new target at random peripheral position
+            const geometry = new THREE.SphereGeometry(0.15, 16, 16);
+            const material = new THREE.MeshStandardMaterial({
+                color: 0x00ff88,
+                emissive: 0x00ff88,
+                emissiveIntensity: 0.3
+            });
+            const target = new THREE.Mesh(geometry, material);
+
+            // Position at edge of view (peripheral)
+            const angle = Math.random() * Math.PI * 2;
+            const distance = 2.5 + Math.random() * 0.5;
+            const height = 1.6 + (Math.random() - 0.5) * 1.5;
+
+            target.position.set(
+                Math.cos(angle) * distance,
+                height,
+                -2 + Math.sin(angle) * distance
+            );
+
+            target.userData.birthTime = Date.now();
+            target.userData.lifetime = 3000; // 3 seconds
+
+            scene.add(target);
+            peripheralTargets.push(target);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function render() {
+            const now = Date.now();
+
+            // Pulse center marker
+            const centerScale = 1 + Math.sin(now * 0.002) * 0.2;
+            centerMarker.scale.set(centerScale, centerScale, centerScale);
+
+            // Update peripheral targets
+            peripheralTargets.forEach((target, index) => {
+                const age = now - target.userData.birthTime;
+
+                if (age > target.userData.lifetime) {
+                    // Target expired, create new one
+                    scene.remove(target);
+                    peripheralTargets.splice(index, 1);
+                    createPeripheralTarget();
+                } else {
+                    // Fade out as it gets older
+                    const fadeProgress = age / target.userData.lifetime;
+                    target.material.opacity = 1 - fadeProgress;
+                    target.material.transparent = true;
+
+                    // Gentle pulse
+                    const scale = 1 + Math.sin(now * 0.005) * 0.2;
+                    target.scale.set(scale, scale, scale);
+                }
+            });
+
+            renderer.render(scene, camera);
+        }
+
+        init();
+    </script>
+</body>
+</html>

@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pattern Match - Concussion Recovery</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body class="vr-container">
+    <a href="../index.html" class="back-button">← Back to Games</a>
+
+    <div class="vr-info">
+        <h2>Pattern Matching</h2>
+        <p>Observe the 3D patterns and find matching pairs. Patterns will rotate to help identify them.</p>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.150.0/build/three.module.js';
+        import { VRButton } from 'https://cdn.jsdelivr.net/npm/three@0.150.0/examples/jsm/webxr/VRButton.js';
+
+        let scene, camera, renderer;
+        let patterns = [];
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x2c2c54);
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 1.6, 3);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.xr.enabled = true;
+            document.body.appendChild(renderer.domElement);
+
+            document.body.appendChild(VRButton.createButton(renderer));
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+            scene.add(ambientLight);
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.7);
+            directionalLight.position.set(5, 5, 5);
+            scene.add(directionalLight);
+
+            // Create pattern cards with different shapes
+            const patternTypes = [
+                { type: 'sphere', color: 0xff6b6b },
+                { type: 'cube', color: 0x4ecdc4 },
+                { type: 'cone', color: 0xffe66d },
+                { type: 'sphere', color: 0xff6b6b }, // Duplicate
+                { type: 'cube', color: 0x4ecdc4 },   // Duplicate
+                { type: 'cone', color: 0xffe66d }    // Duplicate
+            ];
+
+            // Shuffle patterns
+            patternTypes.sort(() => Math.random() - 0.5);
+
+            // Create pattern displays in a grid
+            patternTypes.forEach((pattern, index) => {
+                const group = new THREE.Group();
+
+                // Background card
+                const cardGeometry = new THREE.BoxGeometry(0.6, 0.6, 0.1);
+                const cardMaterial = new THREE.MeshStandardMaterial({
+                    color: 0x34495e,
+                    roughness: 0.7
+                });
+                const card = new THREE.Mesh(cardGeometry, cardMaterial);
+                group.add(card);
+
+                // Pattern shape
+                let shapeGeometry;
+                if (pattern.type === 'sphere') {
+                    shapeGeometry = new THREE.SphereGeometry(0.15, 16, 16);
+                } else if (pattern.type === 'cube') {
+                    shapeGeometry = new THREE.BoxGeometry(0.25, 0.25, 0.25);
+                } else {
+                    shapeGeometry = new THREE.ConeGeometry(0.15, 0.3, 16);
+                }
+
+                const shapeMaterial = new THREE.MeshStandardMaterial({
+                    color: pattern.color,
+                    emissive: pattern.color,
+                    emissiveIntensity: 0.2
+                });
+                const shape = new THREE.Mesh(shapeGeometry, shapeMaterial);
+                shape.position.z = 0.1;
+                group.add(shape);
+
+                // Position in grid (2 rows, 3 columns)
+                const col = index % 3;
+                const row = Math.floor(index / 3);
+                group.position.set(
+                    (col - 1) * 0.8,
+                    1.6 + (row - 0.5) * 0.8,
+                    -2
+                );
+
+                group.userData.pattern = pattern;
+                group.userData.shape = shape;
+                scene.add(group);
+                patterns.push(group);
+            });
+
+            window.addEventListener('resize', onWindowResize);
+            renderer.setAnimationLoop(render);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function render() {
+            // Rotate the pattern shapes
+            patterns.forEach((pattern, index) => {
+                if (pattern.userData.shape) {
+                    pattern.userData.shape.rotation.y += 0.01;
+                    pattern.userData.shape.rotation.x += 0.005;
+
+                    // Gentle floating
+                    const offset = index * 0.7;
+                    const floatY = Math.sin(Date.now() * 0.001 + offset) * 0.05;
+                    pattern.userData.shape.position.y = floatY;
+                }
+            });
+
+            renderer.render(scene, camera);
+        }
+
+        init();
+    </script>
+</body>
+</html>

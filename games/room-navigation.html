@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Room Navigation - Concussion Recovery</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body class="vr-container">
+    <a href="../index.html" class="back-button">← Back to Games</a>
+
+    <div class="vr-info">
+        <h2>Room Navigation</h2>
+        <p>Navigate through a simple virtual room with gentle obstacles. Practice spatial awareness and movement planning.</p>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.150.0/build/three.module.js';
+        import { VRButton } from 'https://cdn.jsdelivr.net/npm/three@0.150.0/examples/jsm/webxr/VRButton.js';
+
+        let scene, camera, renderer;
+        let waypoints = [];
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xb0c4de);
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 1.6, 5);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.xr.enabled = true;
+            document.body.appendChild(renderer.domElement);
+
+            document.body.appendChild(VRButton.createButton(renderer));
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+            directionalLight.position.set(5, 10, 5);
+            scene.add(directionalLight);
+
+            // Create room
+            const wallMaterial = new THREE.MeshStandardMaterial({
+                color: 0xdcdcdc,
+                roughness: 0.9
+            });
+
+            // Floor
+            const floorGeometry = new THREE.PlaneGeometry(10, 10);
+            const floorMaterial = new THREE.MeshStandardMaterial({
+                color: 0x8B7355,
+                roughness: 0.8
+            });
+            const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+            floor.rotation.x = -Math.PI / 2;
+            scene.add(floor);
+
+            // Walls
+            const wallGeometry = new THREE.BoxGeometry(10, 3, 0.2);
+
+            const backWall = new THREE.Mesh(wallGeometry, wallMaterial);
+            backWall.position.set(0, 1.5, -5);
+            scene.add(backWall);
+
+            const leftWall = new THREE.Mesh(new THREE.BoxGeometry(0.2, 3, 10), wallMaterial);
+            leftWall.position.set(-5, 1.5, 0);
+            scene.add(leftWall);
+
+            const rightWall = new THREE.Mesh(new THREE.BoxGeometry(0.2, 3, 10), wallMaterial);
+            rightWall.position.set(5, 1.5, 0);
+            scene.add(rightWall);
+
+            // Add simple furniture as obstacles
+            const furnitureColors = [0x8B4513, 0xA0522D, 0xD2691E];
+
+            // Table
+            const tableGeometry = new THREE.BoxGeometry(1.5, 0.1, 0.8);
+            const tableMaterial = new THREE.MeshStandardMaterial({ color: furnitureColors[0] });
+            const table = new THREE.Mesh(tableGeometry, tableMaterial);
+            table.position.set(-2, 0.8, -2);
+            scene.add(table);
+
+            // Table legs
+            for (let i = 0; i < 4; i++) {
+                const legGeometry = new THREE.CylinderGeometry(0.05, 0.05, 0.8, 8);
+                const leg = new THREE.Mesh(legGeometry, tableMaterial);
+                const x = i % 2 === 0 ? -0.6 : 0.6;
+                const z = i < 2 ? -0.3 : 0.3;
+                leg.position.set(-2 + x, 0.4, -2 + z);
+                scene.add(leg);
+            }
+
+            // Chair
+            const chairSeat = new THREE.BoxGeometry(0.5, 0.1, 0.5);
+            const chair = new THREE.Mesh(chairSeat, new THREE.MeshStandardMaterial({ color: furnitureColors[1] }));
+            chair.position.set(2, 0.5, 1);
+            scene.add(chair);
+
+            // Waypoints to guide navigation
+            const waypointPositions = [
+                { x: 0, y: 0.3, z: 2 },
+                { x: -3, y: 0.3, z: 0 },
+                { x: -3, y: 0.3, z: -3 },
+                { x: 0, y: 0.3, z: -3 },
+                { x: 3, y: 0.3, z: -3 },
+                { x: 3, y: 0.3, z: 2 }
+            ];
+
+            waypointPositions.forEach((pos, index) => {
+                const geometry = new THREE.CylinderGeometry(0.3, 0.3, 0.1, 32);
+                const material = new THREE.MeshStandardMaterial({
+                    color: 0x00ff00,
+                    emissive: 0x00ff00,
+                    emissiveIntensity: 0.3,
+                    transparent: true,
+                    opacity: 0.7
+                });
+                const waypoint = new THREE.Mesh(geometry, material);
+                waypoint.position.set(pos.x, pos.y, pos.z);
+                waypoint.userData.index = index;
+                scene.add(waypoint);
+                waypoints.push(waypoint);
+            });
+
+            window.addEventListener('resize', onWindowResize);
+            renderer.setAnimationLoop(render);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function render() {
+            // Animate waypoints
+            waypoints.forEach((waypoint, index) => {
+                const offset = index * 0.3;
+                const pulse = 1 + Math.sin(Date.now() * 0.002 + offset) * 0.1;
+                waypoint.scale.set(pulse, 1, pulse);
+
+                // Rotate slowly
+                waypoint.rotation.y += 0.01;
+            });
+
+            renderer.render(scene, camera);
+        }
+
+        init();
+    </script>
+</body>
+</html>

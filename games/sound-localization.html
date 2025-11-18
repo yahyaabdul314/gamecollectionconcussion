@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sound Localization - Concussion Recovery</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body class="vr-container">
+    <a href="../index.html" class="back-button">← Back to Games</a>
+
+    <div class="vr-info">
+        <h2>Sound Localization</h2>
+        <p>Listen for sounds around you and locate their source in 3D space. Turn towards the sound!</p>
+        <p><strong>Note:</strong> Use headphones for best spatial audio experience.</p>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.150.0/build/three.module.js';
+        import { VRButton } from 'https://cdn.jsdelivr.net/npm/three@0.150.0/examples/jsm/webxr/VRButton.js';
+
+        let scene, camera, renderer, listener, audioLoader;
+        let soundSources = [];
+        let activeSoundSource = null;
+        let nextSoundTime = 0;
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x2c2c54);
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 1.6, 0);
+
+            // Audio listener attached to camera
+            listener = new THREE.AudioListener();
+            camera.add(listener);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.xr.enabled = true;
+            document.body.appendChild(renderer.domElement);
+
+            document.body.appendChild(VRButton.createButton(renderer));
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+            scene.add(ambientLight);
+
+            // Create visual indicators for sound sources
+            const positions = [
+                { angle: 0, distance: 3, label: 'Front' },
+                { angle: Math.PI / 2, distance: 3, label: 'Right' },
+                { angle: Math.PI, distance: 3, label: 'Back' },
+                { angle: -Math.PI / 2, distance: 3, label: 'Left' },
+                { angle: Math.PI / 4, distance: 3, label: 'Front-Right' },
+                { angle: 3 * Math.PI / 4, distance: 3, label: 'Back-Right' },
+                { angle: -3 * Math.PI / 4, distance: 3, label: 'Back-Left' },
+                { angle: -Math.PI / 4, distance: 3, label: 'Front-Left' }
+            ];
+
+            positions.forEach((pos, index) => {
+                const group = new THREE.Group();
+
+                // Visual marker
+                const geometry = new THREE.ConeGeometry(0.15, 0.3, 8);
+                const material = new THREE.MeshStandardMaterial({
+                    color: 0x666666,
+                    emissive: 0x000000
+                });
+                const cone = new THREE.Mesh(geometry, material);
+                cone.rotation.x = Math.PI;
+                cone.position.y = 1.6;
+                group.add(cone);
+
+                // Position
+                group.position.set(
+                    Math.sin(pos.angle) * pos.distance,
+                    0,
+                    Math.cos(pos.angle) * pos.distance
+                );
+
+                group.userData.cone = cone;
+                group.userData.label = pos.label;
+                group.userData.active = false;
+
+                // Create positional audio
+                const sound = new THREE.PositionalAudio(listener);
+
+                // Create oscillator-based sound
+                group.userData.playSound = function() {
+                    // Since we can't easily create audio buffers, we'll use visual feedback
+                    // In a real implementation, you'd load actual sound files
+                    this.userData.active = true;
+                    this.userData.activatedTime = Date.now();
+                    this.userData.cone.material.color.setHex(0x00ff00);
+                    this.userData.cone.material.emissive.setHex(0x00ff00);
+                    this.userData.cone.material.emissiveIntensity = 0.5;
+
+                    // Play a simple beep
+                    playBeep(400 + index * 50);
+                };
+
+                scene.add(group);
+                soundSources.push(group);
+            });
+
+            // Add floor grid for reference
+            const gridHelper = new THREE.GridHelper(10, 10);
+            scene.add(gridHelper);
+
+            window.addEventListener('resize', onWindowResize);
+            renderer.setAnimationLoop(render);
+        }
+
+        function playBeep(frequency) {
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+
+                oscillator.frequency.value = frequency;
+                oscillator.type = 'sine';
+
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.5);
+            } catch (e) {
+                console.log('Audio not supported');
+            }
+        }
+
+        function activateRandomSource() {
+            // Deactivate all sources
+            soundSources.forEach(source => {
+                source.userData.active = false;
+                source.userData.cone.material.color.setHex(0x666666);
+                source.userData.cone.material.emissive.setHex(0x000000);
+                source.userData.cone.material.emissiveIntensity = 0;
+            });
+
+            // Activate random source
+            const randomIndex = Math.floor(Math.random() * soundSources.length);
+            activeSoundSource = soundSources[randomIndex];
+            activeSoundSource.userData.playSound();
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function render() {
+            const now = Date.now();
+
+            // Activate sound source periodically
+            if (now > nextSoundTime) {
+                activateRandomSource();
+                nextSoundTime = now + 4000; // Every 4 seconds
+            }
+
+            // Update active sources
+            soundSources.forEach(source => {
+                if (source.userData.active) {
+                    // Pulse effect
+                    const age = now - source.userData.activatedTime;
+                    if (age < 3000) { // Active for 3 seconds
+                        const scale = 1 + Math.sin(now * 0.01) * 0.3;
+                        source.userData.cone.scale.set(scale, scale, scale);
+                    } else {
+                        source.userData.active = false;
+                        source.userData.cone.material.color.setHex(0x666666);
+                        source.userData.cone.material.emissive.setHex(0x000000);
+                    }
+                }
+            });
+
+            renderer.render(scene, camera);
+        }
+
+        init();
+    </script>
+</body>
+</html>

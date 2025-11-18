@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Color Memory - Concussion Recovery</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body class="vr-container">
+    <a href="../index.html" class="back-button">← Back to Games</a>
+
+    <div class="vr-info">
+        <h2>Color Memory</h2>
+        <p>Watch the sequence of colors and remember them. The sequence will repeat for practice.</p>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.150.0/build/three.module.js';
+        import { VRButton } from 'https://cdn.jsdelivr.net/npm/three@0.150.0/examples/jsm/webxr/VRButton.js';
+
+        let scene, camera, renderer;
+        let colorCubes = [];
+        let sequence = [];
+        let currentSequenceIndex = 0;
+        let showingSequence = false;
+        let sequenceInterval = null;
+
+        const COLORS = [
+            { name: 'Red', color: 0xff0000 },
+            { name: 'Green', color: 0x00ff00 },
+            { name: 'Blue', color: 0x0000ff },
+            { name: 'Yellow', color: 0xffff00 },
+            { name: 'Purple', color: 0xff00ff },
+            { name: 'Cyan', color: 0x00ffff }
+        ];
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x1a1a1a);
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 1.6, 2);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.xr.enabled = true;
+            document.body.appendChild(renderer.domElement);
+
+            document.body.appendChild(VRButton.createButton(renderer));
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+            scene.add(ambientLight);
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.6);
+            directionalLight.position.set(5, 5, 5);
+            scene.add(directionalLight);
+
+            // Create color cubes in a circle
+            const radius = 1.5;
+            COLORS.forEach((colorData, index) => {
+                const angle = (index / COLORS.length) * Math.PI * 2;
+                const geometry = new THREE.BoxGeometry(0.3, 0.3, 0.3);
+                const material = new THREE.MeshStandardMaterial({
+                    color: colorData.color,
+                    emissive: 0x000000
+                });
+
+                const cube = new THREE.Mesh(geometry, material);
+                cube.position.set(
+                    Math.sin(angle) * radius,
+                    1.6,
+                    -2 + Math.cos(angle) * radius
+                );
+
+                cube.userData.colorIndex = index;
+                cube.userData.originalColor = colorData.color;
+                scene.add(cube);
+                colorCubes.push(cube);
+            });
+
+            // Generate simple sequence
+            generateSequence(4);
+            startSequence();
+
+            window.addEventListener('resize', onWindowResize);
+            renderer.setAnimationLoop(render);
+        }
+
+        function generateSequence(length) {
+            sequence = [];
+            for (let i = 0; i < length; i++) {
+                sequence.push(Math.floor(Math.random() * COLORS.length));
+            }
+        }
+
+        function startSequence() {
+            showingSequence = true;
+            currentSequenceIndex = 0;
+
+            sequenceInterval = setInterval(() => {
+                if (currentSequenceIndex >= sequence.length) {
+                    clearInterval(sequenceInterval);
+                    currentSequenceIndex = 0;
+                    setTimeout(() => startSequence(), 3000); // Repeat after 3 seconds
+                    return;
+                }
+
+                const cubeIndex = sequence[currentSequenceIndex];
+                highlightCube(cubeIndex);
+                currentSequenceIndex++;
+            }, 1000);
+        }
+
+        function highlightCube(index) {
+            // Reset all cubes
+            colorCubes.forEach(cube => {
+                cube.material.emissive.setHex(0x000000);
+                cube.material.emissiveIntensity = 0;
+            });
+
+            // Highlight the current cube
+            const cube = colorCubes[index];
+            cube.material.emissive.setHex(cube.userData.originalColor);
+            cube.material.emissiveIntensity = 0.5;
+
+            // Play sound
+            playSound(200 + index * 100, 0.3);
+        }
+
+        function playSound(frequency, duration) {
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+
+                oscillator.frequency.value = frequency;
+                oscillator.type = 'sine';
+
+                gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
+
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + duration);
+            } catch (e) {
+                console.log('Audio not supported');
+            }
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function render() {
+            // Gentle rotation for non-highlighted cubes
+            colorCubes.forEach(cube => {
+                cube.rotation.y += 0.005;
+            });
+
+            renderer.render(scene, camera);
+        }
+
+        init();
+    </script>
+</body>
+</html>

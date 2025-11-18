@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Focus Point - Concussion Recovery</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body class="vr-container">
+    <a href="../index.html" class="back-button">← Back to Games</a>
+
+    <div class="vr-info">
+        <h2>Focus Point Training</h2>
+        <p>Keep your eyes on the central point while being aware of moving objects around it. This trains central focus with peripheral awareness.</p>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.150.0/build/three.module.js';
+        import { VRButton } from 'https://cdn.jsdelivr.net/npm/three@0.150.0/examples/jsm/webxr/VRButton.js';
+
+        let scene, camera, renderer;
+        let centralPoint, peripheralObjects = [];
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x2c3e50);
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 1.6, 0);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.xr.enabled = true;
+            document.body.appendChild(renderer.domElement);
+
+            document.body.appendChild(VRButton.createButton(renderer));
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+
+            // Central focus point
+            const centralGeometry = new THREE.SphereGeometry(0.05, 32, 32);
+            const centralMaterial = new THREE.MeshStandardMaterial({
+                color: 0xffff00,
+                emissive: 0xffff00,
+                emissiveIntensity: 0.5
+            });
+            centralPoint = new THREE.Mesh(centralGeometry, centralMaterial);
+            centralPoint.position.set(0, 1.6, -2);
+            scene.add(centralPoint);
+
+            // Add cross-hair around central point
+            const lineGeometry = new THREE.BufferGeometry();
+            const lineMaterial = new THREE.LineBasicMaterial({ color: 0xffff00 });
+
+            const points = [
+                new THREE.Vector3(-0.1, 0, 0),
+                new THREE.Vector3(0.1, 0, 0)
+            ];
+            lineGeometry.setFromPoints(points);
+            const horizontalLine = new THREE.Line(lineGeometry, lineMaterial);
+            horizontalLine.position.copy(centralPoint.position);
+            scene.add(horizontalLine);
+
+            const verticalPoints = [
+                new THREE.Vector3(0, -0.1, 0),
+                new THREE.Vector3(0, 0.1, 0)
+            ];
+            const verticalGeometry = new THREE.BufferGeometry();
+            verticalGeometry.setFromPoints(verticalPoints);
+            const verticalLine = new THREE.Line(verticalGeometry, lineMaterial);
+            verticalLine.position.copy(centralPoint.position);
+            scene.add(verticalLine);
+
+            // Create peripheral objects that move around
+            for (let i = 0; i < 8; i++) {
+                const geometry = new THREE.BoxGeometry(0.1, 0.1, 0.1);
+                const material = new THREE.MeshStandardMaterial({
+                    color: Math.random() * 0xffffff
+                });
+                const box = new THREE.Mesh(geometry, material);
+
+                const angle = (i / 8) * Math.PI * 2;
+                const radius = 1.5;
+                box.position.set(
+                    Math.cos(angle) * radius,
+                    1.6 + (Math.random() - 0.5) * 0.5,
+                    -2 + Math.sin(angle) * radius
+                );
+
+                box.userData = {
+                    angle: angle,
+                    radius: radius,
+                    speed: 0.001 + Math.random() * 0.001
+                };
+
+                scene.add(box);
+                peripheralObjects.push(box);
+            }
+
+            window.addEventListener('resize', onWindowResize);
+            renderer.setAnimationLoop(render);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function render() {
+            // Gentle pulse on central point
+            const scale = 1 + Math.sin(Date.now() * 0.003) * 0.3;
+            centralPoint.scale.set(scale, scale, scale);
+
+            // Move peripheral objects in circles
+            peripheralObjects.forEach(obj => {
+                obj.userData.angle += obj.userData.speed;
+                obj.position.x = Math.cos(obj.userData.angle) * obj.userData.radius;
+                obj.position.z = -2 + Math.sin(obj.userData.angle) * obj.userData.radius;
+                obj.rotation.x += 0.01;
+                obj.rotation.y += 0.01;
+            });
+
+            renderer.render(scene, camera);
+        }
+
+        init();
+    </script>
+</body>
+</html>

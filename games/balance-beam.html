@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Balance Beam - Concussion Recovery</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body class="vr-container">
+    <a href="../index.html" class="back-button">← Back to Games</a>
+
+    <div class="vr-info">
+        <h2>Virtual Balance Beam</h2>
+        <p>Walk along the virtual beam. This trains balance and spatial awareness in a safe environment.</p>
+        <p><strong>Tip:</strong> Move slowly and maintain steady head position.</p>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.150.0/build/three.module.js';
+        import { VRButton } from 'https://cdn.jsdelivr.net/npm/three@0.150.0/examples/jsm/webxr/VRButton.js';
+
+        let scene, camera, renderer;
+        let beam, progressMarkers = [];
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87CEEB);
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 1.6, 2);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.xr.enabled = true;
+            document.body.appendChild(renderer.domElement);
+
+            document.body.appendChild(VRButton.createButton(renderer));
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+            scene.add(ambientLight);
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+            directionalLight.position.set(5, 10, 5);
+            scene.add(directionalLight);
+
+            // Create balance beam
+            const beamGeometry = new THREE.BoxGeometry(0.3, 0.1, 10);
+            const beamMaterial = new THREE.MeshStandardMaterial({
+                color: 0x8B4513,
+                roughness: 0.8
+            });
+            beam = new THREE.Mesh(beamGeometry, beamMaterial);
+            beam.position.set(0, 0.3, -3);
+            scene.add(beam);
+
+            // Add support posts
+            for (let i = -4; i <= 2; i += 2) {
+                const postGeometry = new THREE.CylinderGeometry(0.05, 0.05, 0.3, 8);
+                const postMaterial = new THREE.MeshStandardMaterial({ color: 0x654321 });
+                const post = new THREE.Mesh(postGeometry, postMaterial);
+                post.position.set(0, 0.15, i);
+                scene.add(post);
+            }
+
+            // Add progress markers along the beam
+            for (let i = 0; i < 10; i++) {
+                const markerGeometry = new THREE.SphereGeometry(0.08, 16, 16);
+                const markerMaterial = new THREE.MeshStandardMaterial({
+                    color: 0x00ff00,
+                    emissive: 0x00ff00,
+                    emissiveIntensity: 0.3
+                });
+                const marker = new THREE.Mesh(markerGeometry, markerMaterial);
+                marker.position.set(0, 0.5, -8 + i * 1);
+                scene.add(marker);
+                progressMarkers.push(marker);
+            }
+
+            // Add floor with grid
+            const floorGeometry = new THREE.PlaneGeometry(20, 20);
+            const floorMaterial = new THREE.MeshStandardMaterial({
+                color: 0x90EE90,
+                roughness: 0.9
+            });
+            const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+            floor.rotation.x = -Math.PI / 2;
+            floor.position.y = 0;
+            scene.add(floor);
+
+            // Add simple sky
+            const skyGeometry = new THREE.SphereGeometry(100, 32, 32);
+            const skyMaterial = new THREE.MeshBasicMaterial({
+                color: 0x87CEEB,
+                side: THREE.BackSide
+            });
+            const sky = new THREE.Mesh(skyGeometry, skyMaterial);
+            scene.add(sky);
+
+            window.addEventListener('resize', onWindowResize);
+            renderer.setAnimationLoop(render);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function render() {
+            // Gentle pulse on progress markers
+            progressMarkers.forEach((marker, index) => {
+                const offset = index * 0.5;
+                const scale = 1 + Math.sin(Date.now() * 0.002 + offset) * 0.2;
+                marker.scale.set(scale, scale, scale);
+            });
+
+            renderer.render(scene, camera);
+        }
+
+        init();
+    </script>
+</body>
+</html>

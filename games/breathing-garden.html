@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Breathing Garden - Concussion Recovery</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body class="vr-container">
+    <a href="../index.html" class="back-button">← Back to Games</a>
+
+    <div class="vr-info">
+        <h2>Breathing Garden</h2>
+        <p>Practice calm breathing exercises in a peaceful virtual garden. Follow the visual cues to breathe in and out.</p>
+        <p><strong>Breathe in (4s) → Hold (2s) → Breathe out (6s)</strong></p>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.150.0/build/three.module.js';
+        import { VRButton } from 'https://cdn.jsdelivr.net/npm/three@0.150.0/examples/jsm/webxr/VRButton.js';
+
+        let scene, camera, renderer;
+        let breathingSphere;
+        let flowers = [];
+        let breathingPhase = 'inhale'; // inhale, hold, exhale
+        let phaseStartTime = Date.now();
+
+        const BREATHING_CYCLE = {
+            inhale: 4000,   // 4 seconds
+            hold: 2000,     // 2 seconds
+            exhale: 6000    // 6 seconds
+        };
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87CEEB);
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 1.6, 0);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.xr.enabled = true;
+            document.body.appendChild(renderer.domElement);
+
+            document.body.appendChild(VRButton.createButton(renderer));
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+            scene.add(ambientLight);
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.4);
+            directionalLight.position.set(5, 10, 5);
+            scene.add(directionalLight);
+
+            // Create breathing guide sphere
+            const sphereGeometry = new THREE.SphereGeometry(0.3, 32, 32);
+            const sphereMaterial = new THREE.MeshStandardMaterial({
+                color: 0x4A90E2,
+                emissive: 0x4A90E2,
+                emissiveIntensity: 0.3,
+                transparent: true,
+                opacity: 0.8
+            });
+            breathingSphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+            breathingSphere.position.set(0, 1.6, -2);
+            scene.add(breathingSphere);
+
+            // Create garden floor
+            const floorGeometry = new THREE.CircleGeometry(8, 32);
+            const floorMaterial = new THREE.MeshStandardMaterial({
+                color: 0x90EE90,
+                roughness: 0.9
+            });
+            const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+            floor.rotation.x = -Math.PI / 2;
+            scene.add(floor);
+
+            // Create flowers in a circle
+            for (let i = 0; i < 12; i++) {
+                const angle = (i / 12) * Math.PI * 2;
+                const radius = 3;
+
+                // Flower stem
+                const stemGeometry = new THREE.CylinderGeometry(0.02, 0.02, 0.5, 8);
+                const stemMaterial = new THREE.MeshStandardMaterial({ color: 0x228B22 });
+                const stem = new THREE.Mesh(stemGeometry, stemMaterial);
+                stem.position.set(
+                    Math.sin(angle) * radius,
+                    0.25,
+                    Math.cos(angle) * radius
+                );
+                scene.add(stem);
+
+                // Flower petals
+                const petalColors = [0xFF69B4, 0xFFB6C1, 0xFFA07A, 0xFFD700, 0xEE82EE];
+                const petalColor = petalColors[i % petalColors.length];
+
+                for (let p = 0; p < 6; p++) {
+                    const petalAngle = (p / 6) * Math.PI * 2;
+                    const petalGeometry = new THREE.SphereGeometry(0.08, 16, 16);
+                    const petalMaterial = new THREE.MeshStandardMaterial({
+                        color: petalColor,
+                        emissive: petalColor,
+                        emissiveIntensity: 0.2
+                    });
+                    const petal = new THREE.Mesh(petalGeometry, petalMaterial);
+
+                    petal.position.set(
+                        Math.sin(angle) * radius + Math.sin(petalAngle) * 0.12,
+                        0.5 + Math.cos(petalAngle) * 0.12,
+                        Math.cos(angle) * radius
+                    );
+
+                    scene.add(petal);
+                    flowers.push(petal);
+                }
+
+                // Flower center
+                const centerGeometry = new THREE.SphereGeometry(0.06, 16, 16);
+                const centerMaterial = new THREE.MeshStandardMaterial({
+                    color: 0xFFD700,
+                    emissive: 0xFFD700,
+                    emissiveIntensity: 0.3
+                });
+                const center = new THREE.Mesh(centerGeometry, centerMaterial);
+                center.position.set(
+                    Math.sin(angle) * radius,
+                    0.5,
+                    Math.cos(angle) * radius
+                );
+                scene.add(center);
+            }
+
+            // Add text instruction
+            createTextSprite("Follow the sphere's breathing rhythm", 0, 2.5, -2);
+
+            window.addEventListener('resize', onWindowResize);
+            renderer.setAnimationLoop(render);
+        }
+
+        function createTextSprite(text, x, y, z) {
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            canvas.width = 512;
+            canvas.height = 128;
+
+            context.fillStyle = '#ffffff';
+            context.font = 'Bold 32px Arial';
+            context.textAlign = 'center';
+            context.textBaseline = 'middle';
+            context.fillText(text, canvas.width / 2, canvas.height / 2);
+
+            const texture = new THREE.CanvasTexture(canvas);
+            const spriteMaterial = new THREE.SpriteMaterial({ map: texture });
+            const sprite = new THREE.Sprite(spriteMaterial);
+            sprite.scale.set(2, 0.5, 1);
+            sprite.position.set(x, y, z);
+            scene.add(sprite);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function updateBreathingPhase() {
+            const now = Date.now();
+            const phaseElapsed = now - phaseStartTime;
+
+            if (breathingPhase === 'inhale' && phaseElapsed > BREATHING_CYCLE.inhale) {
+                breathingPhase = 'hold';
+                phaseStartTime = now;
+            } else if (breathingPhase === 'hold' && phaseElapsed > BREATHING_CYCLE.hold) {
+                breathingPhase = 'exhale';
+                phaseStartTime = now;
+            } else if (breathingPhase === 'exhale' && phaseElapsed > BREATHING_CYCLE.exhale) {
+                breathingPhase = 'inhale';
+                phaseStartTime = now;
+            }
+        }
+
+        function render() {
+            updateBreathingPhase();
+
+            const phaseProgress = (Date.now() - phaseStartTime) / BREATHING_CYCLE[breathingPhase];
+            let targetScale;
+
+            if (breathingPhase === 'inhale') {
+                targetScale = 1 + phaseProgress * 0.8; // Grow to 1.8
+                breathingSphere.material.color.setHex(0x4A90E2); // Blue
+            } else if (breathingPhase === 'hold') {
+                targetScale = 1.8; // Stay large
+                breathingSphere.material.color.setHex(0xFFD700); // Gold
+            } else {
+                targetScale = 1.8 - phaseProgress * 0.8; // Shrink to 1
+                breathingSphere.material.color.setHex(0x50C878); // Green
+            }
+
+            breathingSphere.scale.set(targetScale, targetScale, targetScale);
+
+            // Gentle flower animation
+            flowers.forEach((flower, index) => {
+                const offset = index * 0.5;
+                const sway = Math.sin(Date.now() * 0.001 + offset) * 0.02;
+                flower.position.y += sway * 0.1;
+            });
+
+            renderer.render(scene, camera);
+        }
+
+        init();
+    </script>
+</body>
+</html>

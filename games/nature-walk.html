@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nature Walk - Concussion Recovery</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body class="vr-container">
+    <a href="../index.html" class="back-button">← Back to Games</a>
+
+    <div class="vr-info">
+        <h2>Nature Walk</h2>
+        <p>Take a gentle walk through a calming natural environment. Enjoy the peaceful scenery.</p>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.150.0/build/three.module.js';
+        import { VRButton } from 'https://cdn.jsdelivr.net/npm/three@0.150.0/examples/jsm/webxr/VRButton.js';
+
+        let scene, camera, renderer;
+        let trees = [];
+        let butterflies = [];
+        let clouds = [];
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87CEEB);
+            scene.fog = new THREE.Fog(0x87CEEB, 10, 50);
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 1.6, 5);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.xr.enabled = true;
+            document.body.appendChild(renderer.domElement);
+
+            document.body.appendChild(VRButton.createButton(renderer));
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(10, 20, 10);
+            scene.add(directionalLight);
+
+            // Create ground with grass
+            const groundGeometry = new THREE.PlaneGeometry(100, 100);
+            const groundMaterial = new THREE.MeshStandardMaterial({
+                color: 0x7CFC00,
+                roughness: 0.9
+            });
+            const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+            ground.rotation.x = -Math.PI / 2;
+            scene.add(ground);
+
+            // Create path
+            const pathGeometry = new THREE.PlaneGeometry(2, 100);
+            const pathMaterial = new THREE.MeshStandardMaterial({
+                color: 0xD2B48C,
+                roughness: 0.95
+            });
+            const path = new THREE.Mesh(pathGeometry, pathMaterial);
+            path.rotation.x = -Math.PI / 2;
+            path.position.y = 0.01;
+            scene.add(path);
+
+            // Create trees along the path
+            for (let i = 0; i < 20; i++) {
+                const side = i % 2 === 0 ? 1 : -1;
+                const z = -5 - i * 5;
+
+                // Tree trunk
+                const trunkGeometry = new THREE.CylinderGeometry(0.3, 0.4, 3, 8);
+                const trunkMaterial = new THREE.MeshStandardMaterial({
+                    color: 0x8B4513,
+                    roughness: 0.9
+                });
+                const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
+                trunk.position.set(3 * side + (Math.random() - 0.5), 1.5, z);
+                scene.add(trunk);
+
+                // Tree foliage
+                const foliageGeometry = new THREE.SphereGeometry(1.5, 8, 8);
+                const foliageMaterial = new THREE.MeshStandardMaterial({
+                    color: 0x228B22,
+                    roughness: 0.8
+                });
+                const foliage = new THREE.Mesh(foliageGeometry, foliageMaterial);
+                foliage.position.set(trunk.position.x, 4, trunk.position.z);
+                foliage.scale.set(1, 1.2, 1);
+                scene.add(foliage);
+
+                trees.push({ trunk, foliage });
+            }
+
+            // Create flowers along the path
+            for (let i = 0; i < 30; i++) {
+                const side = Math.random() > 0.5 ? 1 : -1;
+                const x = 1.5 * side + (Math.random() - 0.5) * 1.5;
+                const z = Math.random() * -100;
+
+                const flowerGeometry = new THREE.SphereGeometry(0.1, 8, 8);
+                const flowerColors = [0xFF69B4, 0xFFB6C1, 0xFFA07A, 0xFFD700, 0xEE82EE];
+                const flowerMaterial = new THREE.MeshStandardMaterial({
+                    color: flowerColors[Math.floor(Math.random() * flowerColors.length)],
+                    emissive: flowerColors[Math.floor(Math.random() * flowerColors.length)],
+                    emissiveIntensity: 0.2
+                });
+                const flower = new THREE.Mesh(flowerGeometry, flowerMaterial);
+                flower.position.set(x, 0.15, z);
+                scene.add(flower);
+            }
+
+            // Create butterflies
+            for (let i = 0; i < 5; i++) {
+                const butterflyGroup = new THREE.Group();
+
+                // Butterfly body
+                const bodyGeometry = new THREE.CylinderGeometry(0.02, 0.02, 0.15, 6);
+                const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x000000 });
+                const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+                butterflyGroup.add(body);
+
+                // Wings
+                const wingGeometry = new THREE.CircleGeometry(0.12, 8);
+                const wingMaterial = new THREE.MeshStandardMaterial({
+                    color: 0xFFA500,
+                    side: THREE.DoubleSide,
+                    transparent: true,
+                    opacity: 0.8
+                });
+
+                const leftWing = new THREE.Mesh(wingGeometry, wingMaterial);
+                leftWing.position.x = -0.1;
+                leftWing.rotation.y = Math.PI / 4;
+                butterflyGroup.add(leftWing);
+
+                const rightWing = new THREE.Mesh(wingGeometry, wingMaterial.clone());
+                rightWing.position.x = 0.1;
+                rightWing.rotation.y = -Math.PI / 4;
+                butterflyGroup.add(rightWing);
+
+                butterflyGroup.position.set(
+                    (Math.random() - 0.5) * 10,
+                    1 + Math.random() * 2,
+                    -5 - Math.random() * 20
+                );
+
+                butterflyGroup.userData.leftWing = leftWing;
+                butterflyGroup.userData.rightWing = rightWing;
+                butterflyGroup.userData.velocity = new THREE.Vector3(
+                    (Math.random() - 0.5) * 0.02,
+                    (Math.random() - 0.5) * 0.01,
+                    (Math.random() - 0.5) * 0.02
+                );
+
+                scene.add(butterflyGroup);
+                butterflies.push(butterflyGroup);
+            }
+
+            // Create clouds
+            for (let i = 0; i < 8; i++) {
+                const cloudGroup = new THREE.Group();
+
+                for (let j = 0; j < 5; j++) {
+                    const cloudGeometry = new THREE.SphereGeometry(
+                        0.5 + Math.random() * 0.5,
+                        8,
+                        8
+                    );
+                    const cloudMaterial = new THREE.MeshBasicMaterial({
+                        color: 0xffffff,
+                        transparent: true,
+                        opacity: 0.7
+                    });
+                    const cloudPart = new THREE.Mesh(cloudGeometry, cloudMaterial);
+                    cloudPart.position.set(
+                        (j - 2) * 0.6,
+                        Math.random() * 0.3,
+                        Math.random() * 0.3
+                    );
+                    cloudGroup.add(cloudPart);
+                }
+
+                cloudGroup.position.set(
+                    (Math.random() - 0.5) * 40,
+                    5 + Math.random() * 3,
+                    -10 - Math.random() * 30
+                );
+
+                cloudGroup.userData.speed = 0.005 + Math.random() * 0.005;
+
+                scene.add(cloudGroup);
+                clouds.push(cloudGroup);
+            }
+
+            window.addEventListener('resize', onWindowResize);
+            renderer.setAnimationLoop(render);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function render() {
+            const now = Date.now();
+
+            // Animate butterflies
+            butterflies.forEach((butterfly, index) => {
+                butterfly.position.add(butterfly.userData.velocity);
+
+                // Sine wave flight pattern
+                const offset = index * 1.5;
+                butterfly.position.y += Math.sin(now * 0.003 + offset) * 0.01;
+
+                // Flap wings
+                const flapAngle = Math.sin(now * 0.01 + offset) * Math.PI / 6;
+                butterfly.userData.leftWing.rotation.y = Math.PI / 4 + flapAngle;
+                butterfly.userData.rightWing.rotation.y = -Math.PI / 4 - flapAngle;
+
+                // Boundary check
+                if (Math.abs(butterfly.position.x) > 8) butterfly.userData.velocity.x *= -1;
+                if (butterfly.position.y > 4 || butterfly.position.y < 0.5) butterfly.userData.velocity.y *= -1;
+            });
+
+            // Animate clouds
+            clouds.forEach(cloud => {
+                cloud.position.x += cloud.userData.speed;
+                if (cloud.position.x > 30) cloud.position.x = -30;
+            });
+
+            // Gentle tree sway
+            trees.forEach((tree, index) => {
+                const offset = index * 0.3;
+                const sway = Math.sin(now * 0.001 + offset) * 0.05;
+                tree.foliage.rotation.z = sway;
+            });
+
+            renderer.render(scene, camera);
+        }
+
+        init();
+    </script>
+</body>
+</html>

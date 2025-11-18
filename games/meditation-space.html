@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meditation Space - Concussion Recovery</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body class="vr-container">
+    <a href="../index.html" class="back-button">← Back to Games</a>
+
+    <div class="vr-info">
+        <h2>Meditation Space</h2>
+        <p>A quiet, peaceful virtual space for relaxation and mindfulness. Take your time to simply be present.</p>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.150.0/build/three.module.js';
+        import { VRButton } from 'https://cdn.jsdelivr.net/npm/three@0.150.0/examples/jsm/webxr/VRButton.js';
+
+        let scene, camera, renderer;
+        let candles = [];
+        let floatingOrbs = [];
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x1a1a2e);
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 1.6, 0);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.xr.enabled = true;
+            document.body.appendChild(renderer.domElement);
+
+            document.body.appendChild(VRButton.createButton(renderer));
+
+            // Dim ambient lighting
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.3);
+            scene.add(ambientLight);
+
+            // Create meditation platform
+            const platformGeometry = new THREE.CylinderGeometry(3, 3, 0.2, 32);
+            const platformMaterial = new THREE.MeshStandardMaterial({
+                color: 0x3d2f2f,
+                roughness: 0.8
+            });
+            const platform = new THREE.Mesh(platformGeometry, platformMaterial);
+            platform.position.y = 0.1;
+            scene.add(platform);
+
+            // Create cushion
+            const cushionGeometry = new THREE.CylinderGeometry(0.5, 0.4, 0.3, 16);
+            const cushionMaterial = new THREE.MeshStandardMaterial({
+                color: 0x8B4789,
+                roughness: 0.9
+            });
+            const cushion = new THREE.Mesh(cushionGeometry, cushionMaterial);
+            cushion.position.set(0, 0.35, -1);
+            scene.add(cushion);
+
+            // Create candles in a circle
+            const candleCount = 8;
+            for (let i = 0; i < candleCount; i++) {
+                const angle = (i / candleCount) * Math.PI * 2;
+                const radius = 2;
+
+                // Candle body
+                const candleGeometry = new THREE.CylinderGeometry(0.08, 0.08, 0.5, 16);
+                const candleMaterial = new THREE.MeshStandardMaterial({
+                    color: 0xF5DEB3,
+                    roughness: 0.8
+                });
+                const candle = new THREE.Mesh(candleGeometry, candleMaterial);
+                candle.position.set(
+                    Math.sin(angle) * radius,
+                    0.45,
+                    Math.cos(angle) * radius
+                );
+                scene.add(candle);
+
+                // Flame
+                const flameGeometry = new THREE.SphereGeometry(0.08, 8, 8);
+                const flameMaterial = new THREE.MeshBasicMaterial({
+                    color: 0xFFA500,
+                    transparent: true,
+                    opacity: 0.8
+                });
+                const flame = new THREE.Mesh(flameGeometry, flameMaterial);
+                flame.position.set(
+                    Math.sin(angle) * radius,
+                    0.75,
+                    Math.cos(angle) * radius
+                );
+                flame.scale.y = 1.5;
+                scene.add(flame);
+
+                // Point light for candle
+                const light = new THREE.PointLight(0xFFA500, 0.5, 3);
+                light.position.copy(flame.position);
+                scene.add(light);
+
+                candles.push({ flame, light });
+            }
+
+            // Create floating orbs
+            for (let i = 0; i < 12; i++) {
+                const orbGeometry = new THREE.SphereGeometry(0.1, 16, 16);
+                const orbMaterial = new THREE.MeshBasicMaterial({
+                    color: 0x9B59B6,
+                    transparent: true,
+                    opacity: 0.4
+                });
+                const orb = new THREE.Mesh(orbGeometry, orbMaterial);
+
+                orb.position.set(
+                    (Math.random() - 0.5) * 6,
+                    1 + Math.random() * 2,
+                    (Math.random() - 0.5) * 6
+                );
+
+                orb.userData.velocity = new THREE.Vector3(
+                    (Math.random() - 0.5) * 0.005,
+                    (Math.random() - 0.5) * 0.005,
+                    (Math.random() - 0.5) * 0.005
+                );
+
+                scene.add(orb);
+                floatingOrbs.push(orb);
+            }
+
+            // Add stars
+            const starGeometry = new THREE.BufferGeometry();
+            const starVertices = [];
+
+            for (let i = 0; i < 200; i++) {
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.random() * Math.PI;
+                const radius = 15;
+
+                starVertices.push(
+                    radius * Math.sin(phi) * Math.cos(theta),
+                    radius * Math.sin(phi) * Math.sin(theta),
+                    radius * Math.cos(phi)
+                );
+            }
+
+            starGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starVertices, 3));
+            const starMaterial = new THREE.PointsMaterial({
+                color: 0xffffff,
+                size: 0.1
+            });
+            const stars = new THREE.Points(starGeometry, starMaterial);
+            scene.add(stars);
+
+            window.addEventListener('resize', onWindowResize);
+            renderer.setAnimationLoop(render);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function render() {
+            const now = Date.now();
+
+            // Animate candle flames
+            candles.forEach((candle, index) => {
+                const offset = index * 0.5;
+                const flicker = Math.sin(now * 0.01 + offset) * 0.1 + Math.random() * 0.05;
+                candle.flame.scale.y = 1.5 + flicker;
+                candle.flame.position.y = 0.75 + flicker * 0.1;
+
+                // Flicker light intensity
+                candle.light.intensity = 0.5 + flicker;
+            });
+
+            // Animate floating orbs
+            floatingOrbs.forEach((orb, index) => {
+                orb.position.add(orb.userData.velocity);
+
+                // Gentle sine wave movement
+                const offset = index * 0.7;
+                orb.position.y += Math.sin(now * 0.0005 + offset) * 0.001;
+
+                // Pulse opacity
+                orb.material.opacity = 0.3 + Math.sin(now * 0.001 + offset) * 0.2;
+
+                // Boundary check
+                if (Math.abs(orb.position.x) > 5) orb.userData.velocity.x *= -1;
+                if (orb.position.y > 3 || orb.position.y < 0.5) orb.userData.velocity.y *= -1;
+                if (Math.abs(orb.position.z) > 5) orb.userData.velocity.z *= -1;
+            });
+
+            renderer.render(scene, camera);
+        }
+
+        init();
+    </script>
+</body>
+</html>
