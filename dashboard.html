@@ -4,11 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - NeuroRecover</title>
+    <!-- Build: v2.0 - Bulletproof guest mode with comprehensive error handling -->
     <link rel="stylesheet" href="styles.css">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="supabase-config.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    <script src="progression-tracker.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" onerror="console.warn('⚠️ Supabase CDN failed to load')"></script>
+    <script src="supabase-config.js" onerror="console.warn('⚠️ supabase-config.js failed to load')"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" onerror="console.error('❌ Chart.js CDN failed to load')"></script>
+    <script src="progression-tracker.js" onerror="console.error('❌ progression-tracker.js failed to load')"></script>
     <style>
         * {
             margin: 0;
@@ -561,9 +562,11 @@
 
         // Initialize
         document.addEventListener('DOMContentLoaded', async function() {
-            console.log('🚀 Dashboard loading...');
+            console.log('═══════════════════════════════════════');
+            console.log('🚀 Dashboard.html v2.0 loading...');
             console.log('📍 Location:', window.location.href);
             console.log('💾 localStorage keys:', Object.keys(localStorage));
+            console.log('═══════════════════════════════════════');
 
             try {
                 // Check for guest mode
@@ -670,26 +673,45 @@
         });
 
         async function loadDashboard() {
-            const stats = tracker.getOverallStats();
+            console.log('📊 loadDashboard() called');
 
-            // Check if user has any data
-            if (stats.totalSessions === 0) {
+            try {
+                const stats = tracker.getOverallStats();
+                console.log('📈 Stats retrieved:', stats);
+
+                // Check if user has any data
+                if (stats.totalSessions === 0) {
+                    console.log('👋 New user - showing empty state');
+                    document.getElementById('emptyState').style.display = 'block';
+                    document.getElementById('dashboardContent').style.display = 'none';
+                    return;
+                }
+
+                console.log('📊 User has data - loading dashboard content');
+                document.getElementById('emptyState').style.display = 'none';
+                document.getElementById('dashboardContent').style.display = 'block';
+
+                // Load all sections
+                loadStats(stats);
+                loadRecoveryScore();
+                loadRecentActivity();
+                loadAIRecommendations();
+
+                // Check if Chart.js loaded before creating charts
+                if (typeof Chart !== 'undefined') {
+                    loadPerformanceChart();
+                    loadSkillsChart();
+                    loadCategoryChart();
+                } else {
+                    console.error('❌ Chart.js not available - skipping chart rendering');
+                }
+            } catch (error) {
+                console.error('❌ Error in loadDashboard:', error);
+                // Show empty state as fallback
                 document.getElementById('emptyState').style.display = 'block';
                 document.getElementById('dashboardContent').style.display = 'none';
-                return;
+                throw error;
             }
-
-            document.getElementById('emptyState').style.display = 'none';
-            document.getElementById('dashboardContent').style.display = 'block';
-
-            // Load all sections
-            loadStats(stats);
-            loadRecoveryScore();
-            loadRecentActivity();
-            loadAIRecommendations();
-            loadPerformanceChart();
-            loadSkillsChart();
-            loadCategoryChart();
         }
 
         function loadStats(stats) {

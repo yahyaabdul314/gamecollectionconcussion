@@ -624,11 +624,10 @@ class ProgressionTracker {
             'balance': { key: 'balance', name: 'Balance & Spatial Awareness', sessions: 0, duration: 0, avgScore: 0 },
             'memory': { key: 'memory', name: 'Memory & Cognitive Function', sessions: 0, duration: 0, avgScore: 0 },
             'coordination': { key: 'coordination', name: 'Coordination & Gentle Reaction', sessions: 0, duration: 0, avgScore: 0 },
-            'calming': { key: 'calming', name: 'Calming & Therapeutic', sessions: 0, duration: 0, avgScore: 0 }
+            'calming': { key: 'calming', name: 'Calming & Therapeutic', sessions: 0, duration: 0, avgScore: 0 },
+            // Add 'cognitive' as separate category (alias for 'memory') for backward compatibility
+            'cognitive': { key: 'cognitive', name: 'Memory & Cognitive Function', sessions: 0, duration: 0, avgScore: 0 }
         };
-
-        // Add 'cognitive' as alias for 'memory' for backward compatibility
-        categories['cognitive'] = categories['memory'];
 
         if (this.data && this.data.sessions) {
             this.data.sessions.forEach(session => {
@@ -641,8 +640,16 @@ class ProgressionTracker {
             });
         }
 
+        // Merge cognitive into memory for display
+        if (categories['cognitive'].sessions > 0) {
+            categories['memory'].sessions += categories['cognitive'].sessions;
+            categories['memory'].duration += categories['cognitive'].duration;
+            categories['memory'].avgScore += categories['cognitive'].avgScore;
+        }
+
         // Calculate averages
-        Object.values(categories).forEach(cat => {
+        Object.keys(categories).forEach(key => {
+            const cat = categories[key];
             if (cat.sessions > 0) {
                 cat.avgScore = (cat.avgScore / cat.sessions).toFixed(1);
             }
