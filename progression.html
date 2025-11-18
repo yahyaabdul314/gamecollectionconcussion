@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Progression Tracker - VR Concussion Recovery</title>
     <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="progression-tracker.js"></script>
     <style>
@@ -414,12 +416,24 @@
         let categoryChart;
 
         // Initialize on page load
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', async function() {
+            // Initialize Supabase
+            initSupabase();
+
+            // Create and initialize tracker
             tracker = new ProgressionTracker();
-            loadDashboard();
+            await tracker.initialize();
+
+            // Load dashboard
+            await loadDashboard();
         });
 
-        function loadDashboard() {
+        async function loadDashboard() {
+            // Ensure tracker is initialized
+            if (!tracker.data) {
+                await tracker.initialize();
+            }
+
             const stats = tracker.getOverallStats();
 
             // Check if we have any data

@@ -46,9 +46,35 @@ These games are designed to assist in concussion recovery by providing:
 19. **Meditation Space** - Quiet virtual space for relaxation
 20. **Nature Walk** - Gentle walk through calming natural scenery
 
+## 🔐 Authentication & Cloud Sync
+
+The platform now supports **user accounts** with cloud-based progress tracking via Supabase:
+
+### Account Features
+
+- **Cloud Sync**: Progress automatically syncs across all your devices
+- **Secure Login**: Email/password authentication with secure session management
+- **Guest Mode**: Use the platform without an account (progress stored locally)
+- **Cross-Device Access**: Access your therapy data from any device
+- **Data Privacy**: Your data is private and only accessible to you
+
+### Getting Started
+
+1. **Create an Account**: Click "Login / Sign Up" in the top-right corner
+2. **Sign Up**: Enter your email and create a password
+3. **Start Tracking**: All your sessions will automatically sync to the cloud
+4. **Access Anywhere**: Log in from any device to see your progress
+
+### Guest Mode
+
+You can also use the platform without creating an account:
+- Click "Continue as Guest" on the auth page
+- Progress saved in browser's localStorage only
+- Create an account later to sync your data to the cloud
+
 ## 📊 Progression Tracking System
 
-The VR Concussion Recovery platform now includes a comprehensive **Progression Tracker** that helps you monitor your recovery journey:
+The VR Concussion Recovery platform includes a comprehensive **Progression Tracker** that helps you monitor your recovery journey:
 
 ### Key Features
 
@@ -59,6 +85,7 @@ The VR Concussion Recovery platform now includes a comprehensive **Progression T
 - **Goal Setting**: Set daily and weekly therapy goals and track your progress
 - **Category Analytics**: See which therapy areas you're focusing on most
 - **Integration with Assessments**: Connect game progress with clinical assessment results
+- **Cloud or Local Storage**: Syncs to cloud for logged-in users, localStorage for guests
 
 ### How It Works
 
@@ -101,10 +128,19 @@ tracker.endSession(); // Automatically saves to progression tracker
 
 ### Privacy & Data
 
+**For Logged-In Users:**
+- Data stored securely in Supabase cloud database
+- Encrypted connections (HTTPS)
+- Row-level security ensures only you can access your data
+- Syncs automatically across devices
+- Export your data anytime as JSON
+
+**For Guest Users:**
 - All progression data is stored **locally** in your browser
 - No data is sent to external servers
 - Export your data anytime as JSON
 - Reset your progress at any time from the dashboard
+- Can create an account later to migrate data to cloud
 
 ## 🚀 Getting Started
 
@@ -128,9 +164,12 @@ Simply open the `index.html` file in your browser. No build process or dependenc
 ```
 gamecollectionconcussion/
 ├── index.html                 # Main game selection page
+├── auth.html                  # NEW: Login/signup page
 ├── assessment.html            # Assessment suite hub
-├── progression.html           # NEW: Progression tracking dashboard
-├── progression-tracker.js     # NEW: Progression tracking module
+├── progression.html           # Progression tracking dashboard
+├── progression-tracker.js     # Progression tracking module
+├── supabase-config.js         # NEW: Supabase authentication module
+├── SUPABASE_SCHEMA.md         # NEW: Database schema documentation
 ├── styles.css                 # Styling for all pages
 ├── README.md                  # This file
 ├── games/
