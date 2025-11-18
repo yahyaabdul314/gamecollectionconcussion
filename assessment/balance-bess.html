@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Balance Assessment (BESS)</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: Arial, sans-serif; }
+        canvas { display: block; }
+
+        #ui-overlay {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            color: white;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        .instruction-panel {
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            max-width: 600px;
+            margin: 0 auto;
+            pointer-events: all;
+        }
+
+        .test-info {
+            background: rgba(102, 126, 234, 0.9);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+
+        .stance-display {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #00ff00;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .timer {
+            font-size: 3rem;
+            font-weight: bold;
+            text-align: center;
+            color: #ffaa00;
+        }
+
+        .error-count {
+            font-size: 1.5rem;
+            text-align: center;
+            margin: 10px 0;
+            color: #ff6b6b;
+        }
+
+        .vr-button {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 15px 30px;
+            font-size: 18px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            z-index: 101;
+        }
+
+        .vr-button:hover {
+            opacity: 0.9;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            margin: 5px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .btn:hover {
+            background: #764ba2;
+        }
+
+        .btn-start {
+            background: #00ff00;
+            color: black;
+            font-weight: bold;
+            font-size: 18px;
+            padding: 15px 40px;
+        }
+
+        .results-panel {
+            background: rgba(0, 0, 0, 0.9);
+            padding: 30px;
+            border-radius: 10px;
+            max-width: 700px;
+            margin: 0 auto;
+        }
+
+        .score-display {
+            font-size: 2.5rem;
+            font-weight: bold;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .score-excellent { color: #00ff00; }
+        .score-good { color: #ffaa00; }
+        .score-poor { color: #ff6b6b; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #555;
+        }
+
+        th {
+            background: #667eea;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div id="ui-overlay"></div>
+
+    <script src="../games/webxr-utils.js"></script>
+    <script>
+        // BESS Test Manager
+        class BESSTest {
+            constructor() {
+                this.stances = [
+                    { name: 'Double Leg - Eyes Open', duration: 20, eyesClosed: false },
+                    { name: 'Double Leg - Eyes Closed', duration: 20, eyesClosed: true },
+                    { name: 'Single Leg (Right) - Eyes Open', duration: 20, eyesClosed: false },
+                    { name: 'Single Leg (Right) - Eyes Closed', duration: 20, eyesClosed: true },
+                    { name: 'Tandem Stance - Eyes Open', duration: 20, eyesClosed: false },
+                    { name: 'Tandem Stance - Eyes Closed', duration: 20, eyesClosed: true }
+                ];
+
+                this.currentStanceIndex = -1;
+                this.errors = [];
+                this.isRunning = false;
+                this.startTime = 0;
+                this.countdown = 3;
+                this.physicsTracker = null;
+                this.errorThresholds = {
+                    tiltAngle: 15, // degrees
+                    angularVelocity: 30, // degrees per second
+                    footMovement: 0.05 // meters
+                };
+                this.lastPosition = new THREE.Vector3();
+                this.sessionStartTime = new Date();
+            }
+
+            start() {
+                this.currentStanceIndex = 0;
+                this.errors = this.stances.map(() => 0);
+                this.showCountdown();
+            }
+
+            showCountdown() {
+                if (this.countdown > 0) {
+                    this.updateUI('countdown');
+                    setTimeout(() => {
+                        this.countdown--;
+                        this.showCountdown();
+                    }, 1000);
+                } else {
+                    this.countdown = 3;
+                    this.startStance();
+                }
+            }
+
+            startStance() {
+                this.isRunning = true;
+                this.startTime = Date.now();
+                this.lastPosition.copy(camera.position);
+                this.updateUI('testing');
+                this.runStance();
+            }
+
+            runStance() {
+                if (!this.isRunning) return;
+
+                const elapsed = (Date.now() - this.startTime) / 1000;
+                const remaining = this.stances[this.currentStanceIndex].duration - elapsed;
+
+                if (remaining > 0) {
+                    // Check for errors
+                    this.checkForErrors();
+                    this.updateUI('testing');
+                    requestAnimationFrame(() => this.runStance());
+                } else {
+                    this.endStance();
+                }
+            }
+
+            checkForErrors() {
+                if (!this.physicsTracker) return;
+
+                this.physicsTracker.update();
+                const tilt = this.physicsTracker.getTilt();
+                const angle = this.physicsTracker.getAngle();
+
+                // Check tilt angle
+                const totalTilt = Math.sqrt(tilt.x * tilt.x + tilt.z * tilt.z);
+                if (totalTilt > this.errorThresholds.tiltAngle) {
+                    this.errors[this.currentStanceIndex]++;
+                }
+
+                // Check angular velocity (rapid movements)
+                const totalAngularVel = Math.sqrt(angle.x * angle.x + angle.y * angle.y + angle.z * angle.z);
+                if (totalAngularVel > this.errorThresholds.angularVelocity) {
+                    this.errors[this.currentStanceIndex]++;
+                }
+
+                // Check foot movement
+                const movement = camera.position.distanceTo(this.lastPosition);
+                if (movement > this.errorThresholds.footMovement) {
+                    this.errors[this.currentStanceIndex]++;
+                    this.lastPosition.copy(camera.position);
+                }
+            }
+
+            endStance() {
+                this.isRunning = false;
+                this.currentStanceIndex++;
+
+                if (this.currentStanceIndex < this.stances.length) {
+                    setTimeout(() => {
+                        this.showCountdown();
+                    }, 2000);
+                } else {
+                    this.showResults();
+                }
+            }
+
+            getTotalScore() {
+                return this.errors.reduce((a, b) => a + b, 0);
+            }
+
+            getInterpretation() {
+                const score = this.getTotalScore();
+                if (score <= 10) return { text: 'Excellent', class: 'score-excellent', description: 'Normal balance function' };
+                if (score <= 20) return { text: 'Good', class: 'score-good', description: 'Mild balance concerns' };
+                if (score <= 30) return { text: 'Fair', class: 'score-poor', description: 'Moderate balance impairment' };
+                return { text: 'Poor', class: 'score-poor', description: 'Significant balance impairment' };
+            }
+
+            updateUI(mode) {
+                const overlay = document.getElementById('ui-overlay');
+
+                if (mode === 'intro') {
+                    overlay.innerHTML = `
+                        <div class="instruction-panel">
+                            <h1>Balance Error Scoring System (BESS)</h1>
+                            <div class="test-info">
+                                <h3>Test Overview</h3>
+                                <p>This test measures balance through 6 different stances, each held for 20 seconds.</p>
+                                <p><strong>Stances:</strong></p>
+                                <ul>
+                                    <li>Double leg stance (feet together)</li>
+                                    <li>Single leg stance (right foot)</li>
+                                    <li>Tandem stance (heel-to-toe)</li>
+                                </ul>
+                                <p>Each stance performed with eyes open, then eyes closed.</p>
+                            </div>
+
+                            <h3>Instructions</h3>
+                            <ul>
+                                <li>Stand as still as possible in each position</li>
+                                <li>When "eyes closed" appears, close your eyes</li>
+                                <li>Keep hands on hips throughout the test</li>
+                                <li>If you lose balance, return to position and continue</li>
+                                <li>Each error (stumble, hand movement, etc.) is counted</li>
+                            </ul>
+
+                            <div style="text-align: center; margin-top: 20px;">
+                                <button class="btn btn-start" onclick="bessTest.start()">Start Test</button>
+                                <button class="btn" onclick="window.location.href='../assessment.html'">Back to Assessment</button>
+                            </div>
+                        </div>
+                    `;
+                } else if (mode === 'countdown') {
+                    const stance = this.stances[this.currentStanceIndex];
+                    overlay.innerHTML = `
+                        <div class="instruction-panel">
+                            <div class="test-info">
+                                <h2>Stance ${this.currentStanceIndex + 1} of ${this.stances.length}</h2>
+                                <h3>${stance.name}</h3>
+                            </div>
+                            <div class="stance-display">Get Ready...</div>
+                            <div class="timer">${this.countdown}</div>
+                            ${stance.eyesClosed ? '<p style="text-align: center; font-size: 1.5rem; color: #ff6b6b;">Close your eyes when the timer starts!</p>' : ''}
+                        </div>
+                    `;
+                } else if (mode === 'testing') {
+                    const stance = this.stances[this.currentStanceIndex];
+                    const elapsed = (Date.now() - this.startTime) / 1000;
+                    const remaining = Math.max(0, stance.duration - elapsed);
+
+                    overlay.innerHTML = `
+                        <div class="instruction-panel">
+                            <div class="test-info">
+                                <h2>Stance ${this.currentStanceIndex + 1} of ${this.stances.length}</h2>
+                                <h3>${stance.name}</h3>
+                            </div>
+                            ${stance.eyesClosed ? '<div class="stance-display" style="color: #ff0000;">EYES CLOSED</div>' : '<div class="stance-display">EYES OPEN</div>'}
+                            <div class="timer">${remaining.toFixed(1)}s</div>
+                            <div class="error-count">Errors this stance: ${this.errors[this.currentStanceIndex]}</div>
+                        </div>
+                    `;
+                }
+            }
+
+            showResults() {
+                const totalScore = this.getTotalScore();
+                const interpretation = this.getInterpretation();
+                const overlay = document.getElementById('ui-overlay');
+
+                // Save results
+                this.saveResults();
+
+                let tableRows = '';
+                this.stances.forEach((stance, i) => {
+                    tableRows += `<tr><td>${stance.name}</td><td>${this.errors[i]}</td></tr>`;
+                });
+
+                overlay.innerHTML = `
+                    <div class="results-panel">
+                        <h1>BESS Test Results</h1>
+
+                        <div class="score-display ${interpretation.class}">
+                            Total Score: ${totalScore}
+                        </div>
+
+                        <div class="test-info">
+                            <h3>${interpretation.text} - ${interpretation.description}</h3>
+                            <p>Lower scores indicate better balance. Typical scores range from 0-30.</p>
+                        </div>
+
+                        <h3>Detailed Results</h3>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Stance</th>
+                                    <th>Errors</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${tableRows}
+                                <tr style="font-weight: bold; background: #333;">
+                                    <td>TOTAL</td>
+                                    <td>${totalScore}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <div style="background: #fff3cd; color: #856404; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                            <h4>Note:</h4>
+                            <p>Significant deviations from baseline or high error counts may indicate balance issues. Consult with a healthcare provider for proper interpretation.</p>
+                        </div>
+
+                        <div style="text-align: center; margin-top: 20px;">
+                            <button class="btn" onclick="window.location.href='results.html'">View All Results</button>
+                            <button class="btn" onclick="window.location.href='../assessment.html'">Back to Assessment</button>
+                            <button class="btn" onclick="location.reload()">Retake Test</button>
+                        </div>
+                    </div>
+                `;
+            }
+
+            saveResults() {
+                const results = {
+                    testType: 'BESS',
+                    timestamp: this.sessionStartTime.toISOString(),
+                    totalScore: this.getTotalScore(),
+                    interpretation: this.getInterpretation().text,
+                    stanceErrors: this.stances.map((stance, i) => ({
+                        stance: stance.name,
+                        errors: this.errors[i]
+                    }))
+                };
+
+                // Save to localStorage
+                let allResults = JSON.parse(localStorage.getItem('concussionAssessments') || '[]');
+                allResults.push(results);
+                localStorage.setItem('concussionAssessments', JSON.stringify(allResults));
+            }
+        }
+
+        // Initialize Three.js scene
+        let scene, camera, renderer, physicsTracker, bessTest;
+
+        function init() {
+            scene = WebXRUtils.createScene();
+            camera = WebXRUtils.createCamera();
+            renderer = WebXRUtils.createRenderer();
+
+            WebXRUtils.addLighting(scene);
+            WebXRUtils.createFloor(scene, 10, 0x303030);
+
+            // Create reference objects
+            const grid = new THREE.GridHelper(5, 10, 0x00ff00, 0x404040);
+            scene.add(grid);
+
+            // Create VR button
+            WebXRUtils.createVRButton(renderer);
+
+            // Initialize physics tracker
+            physicsTracker = new PhysicsTracker(camera);
+
+            // Initialize BESS test
+            bessTest = new BESSTest();
+            bessTest.physicsTracker = physicsTracker;
+            bessTest.updateUI('intro');
+
+            WebXRUtils.handleWindowResize(camera, renderer);
+
+            renderer.setAnimationLoop(render);
+        }
+
+        function render() {
+            if (physicsTracker) {
+                physicsTracker.update();
+            }
+            renderer.render(scene, camera);
+        }
+
+        init();
+    </script>
+</body>
+</html>

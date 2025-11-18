@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Concussion Assessment Suite</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .assessment-header {
+            text-align: center;
+            margin-bottom: 2rem;
+            padding: 2rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 10px;
+            color: white;
+        }
+
+        .assessment-warning {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 2rem 0;
+            color: #856404;
+        }
+
+        .assessment-info {
+            background: #d1ecf1;
+            border: 2px solid #17a2b8;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 2rem 0;
+            color: #0c5460;
+        }
+
+        .assessment-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        .assessment-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .assessment-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .assessment-card h3 {
+            color: #667eea;
+            margin-bottom: 0.5rem;
+        }
+
+        .assessment-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            margin: 0.5rem 0;
+        }
+
+        .duration {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .domains {
+            background: #f3e5f5;
+            color: #7b1fa2;
+        }
+
+        .test-list {
+            margin: 1rem 0;
+            padding-left: 1.5rem;
+        }
+
+        .test-list li {
+            margin: 0.5rem 0;
+            color: #555;
+        }
+
+        .btn-assessment {
+            display: inline-block;
+            width: 100%;
+            padding: 0.75rem 1.5rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: bold;
+            margin-top: 1rem;
+            transition: opacity 0.3s ease;
+        }
+
+        .btn-assessment:hover {
+            opacity: 0.9;
+        }
+
+        .btn-results {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .progress-section {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 2rem;
+            margin: 2rem 0;
+        }
+
+        .protocol-section {
+            margin: 3rem 0;
+        }
+
+        .protocol-card {
+            background: white;
+            border-left: 4px solid #667eea;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="assessment-header">
+            <h1>Concussion Assessment Suite</h1>
+            <p>Comprehensive VR-Based Neurological Testing</p>
+        </div>
+
+        <div class="assessment-warning">
+            <h3>⚠️ Important Medical Notice</h3>
+            <p><strong>This assessment tool is for educational and screening purposes only.</strong></p>
+            <ul>
+                <li>Not a substitute for professional medical diagnosis</li>
+                <li>Should be administered by trained personnel when possible</li>
+                <li>If concussion is suspected, seek immediate medical attention</li>
+                <li>Do not use if experiencing severe symptoms (vomiting, severe headache, confusion)</li>
+                <li>Results should be reviewed by a qualified healthcare provider</li>
+            </ul>
+        </div>
+
+        <div class="assessment-info">
+            <h3>📋 Assessment Protocol</h3>
+            <p><strong>This suite includes standardized tests based on:</strong></p>
+            <ul>
+                <li>Balance Error Scoring System (BESS)</li>
+                <li>Vestibular-Ocular Motor Screening (VOMS)</li>
+                <li>Reaction Time & Processing Speed Tests</li>
+                <li>Memory & Cognitive Function Assessment</li>
+                <li>Symptom Inventory & Severity Rating</li>
+            </ul>
+            <p><strong>Total Time:</strong> Approximately 20-30 minutes for complete assessment</p>
+        </div>
+
+        <section>
+            <h2>Core Assessment Modules</h2>
+            <div class="assessment-grid">
+                <div class="assessment-card">
+                    <h3>1️⃣ Symptom Checklist</h3>
+                    <span class="assessment-badge duration">5-7 minutes</span>
+                    <p>Comprehensive symptom inventory with severity ratings.</p>
+                    <ul class="test-list">
+                        <li>22-item symptom evaluation</li>
+                        <li>Severity scoring (0-6 scale)</li>
+                        <li>Physical, cognitive, emotional domains</li>
+                        <li>Sleep disturbance assessment</li>
+                    </ul>
+                    <a href="assessment/symptom-checklist.html" class="btn-assessment">Start Symptom Assessment</a>
+                </div>
+
+                <div class="assessment-card">
+                    <h3>2️⃣ Balance Assessment (BESS)</h3>
+                    <span class="assessment-badge duration">3-5 minutes</span>
+                    <span class="assessment-badge domains">Vestibular/Balance</span>
+                    <p>Balance Error Scoring System using VR motion tracking.</p>
+                    <ul class="test-list">
+                        <li>Double leg stance</li>
+                        <li>Single leg stance</li>
+                        <li>Tandem stance</li>
+                        <li>Eyes open and closed conditions</li>
+                    </ul>
+                    <a href="assessment/balance-bess.html" class="btn-assessment">Start Balance Test</a>
+                </div>
+
+                <div class="assessment-card">
+                    <h3>3️⃣ Vestibular-Ocular Assessment</h3>
+                    <span class="assessment-badge duration">5-8 minutes</span>
+                    <span class="assessment-badge domains">Visual/Vestibular</span>
+                    <p>VOMS-based screening for visual and vestibular function.</p>
+                    <ul class="test-list">
+                        <li>Smooth pursuit tracking</li>
+                        <li>Saccadic eye movements</li>
+                        <li>Convergence testing</li>
+                        <li>Vestibulo-ocular reflex (VOR)</li>
+                    </ul>
+                    <a href="assessment/voms-assessment.html" class="btn-assessment">Start VOMS Test</a>
+                </div>
+
+                <div class="assessment-card">
+                    <h3>4️⃣ Reaction Time Test</h3>
+                    <span class="assessment-badge duration">3-5 minutes</span>
+                    <span class="assessment-badge domains">Processing Speed</span>
+                    <p>Measure processing speed and reaction time accuracy.</p>
+                    <ul class="test-list">
+                        <li>Simple reaction time (20 trials)</li>
+                        <li>Choice reaction time</li>
+                        <li>Visual and auditory stimuli</li>
+                        <li>Statistical analysis of responses</li>
+                    </ul>
+                    <a href="assessment/reaction-time.html" class="btn-assessment">Start Reaction Test</a>
+                </div>
+
+                <div class="assessment-card">
+                    <h3>5️⃣ Memory & Cognitive Test</h3>
+                    <span class="assessment-badge duration">8-10 minutes</span>
+                    <span class="assessment-badge domains">Cognitive Function</span>
+                    <p>Comprehensive cognitive assessment battery.</p>
+                    <ul class="test-list">
+                        <li>Immediate word recall</li>
+                        <li>Delayed word recall</li>
+                        <li>Digit span (forward & backward)</li>
+                        <li>Visual pattern recognition</li>
+                        <li>Processing speed tasks</li>
+                    </ul>
+                    <a href="assessment/cognitive-test.html" class="btn-assessment">Start Cognitive Test</a>
+                </div>
+
+                <div class="assessment-card">
+                    <h3>📊 View Assessment Results</h3>
+                    <span class="assessment-badge duration">Review anytime</span>
+                    <p>Review completed assessments and track progress over time.</p>
+                    <ul class="test-list">
+                        <li>Comprehensive score reports</li>
+                        <li>Comparison with baseline</li>
+                        <li>Progress tracking charts</li>
+                        <li>Export results (PDF/JSON)</li>
+                    </ul>
+                    <a href="assessment/results.html" class="btn-assessment btn-results">View Results</a>
+                </div>
+            </div>
+        </section>
+
+        <section class="protocol-section">
+            <h2>Assessment Protocols</h2>
+
+            <div class="protocol-card">
+                <h3>🎯 Baseline Assessment</h3>
+                <p><strong>When to perform:</strong> Before sports season or when healthy (no recent injuries)</p>
+                <p><strong>Purpose:</strong> Establish individual baseline scores for comparison after potential injury</p>
+                <p><strong>Recommended:</strong> Complete all 5 modules for comprehensive baseline</p>
+            </div>
+
+            <div class="protocol-card">
+                <h3>⚕️ Post-Injury Assessment</h3>
+                <p><strong>When to perform:</strong> Within 24-72 hours of suspected concussion, only if cleared by medical professional</p>
+                <p><strong>Purpose:</strong> Document symptoms and functional deficits</p>
+                <p><strong>Note:</strong> Should not be performed if experiencing severe symptoms</p>
+            </div>
+
+            <div class="protocol-card">
+                <h3>📈 Recovery Monitoring</h3>
+                <p><strong>When to perform:</strong> During recovery period (as directed by healthcare provider)</p>
+                <p><strong>Purpose:</strong> Track improvement and readiness to progress in return-to-activity protocol</p>
+                <p><strong>Frequency:</strong> Every 3-7 days or as recommended by medical professional</p>
+            </div>
+
+            <div class="protocol-card">
+                <h3>✅ Return-to-Play Clearance</h3>
+                <p><strong>When to perform:</strong> Before final medical clearance</p>
+                <p><strong>Purpose:</strong> Verify return to baseline functioning</p>
+                <p><strong>Requirement:</strong> Scores should return to baseline levels or better</p>
+            </div>
+        </section>
+
+        <div class="progress-section">
+            <h3>💡 Best Practices</h3>
+            <ul>
+                <li>Complete assessments in a quiet, distraction-free environment</li>
+                <li>Ensure VR headset is properly calibrated and fitted</li>
+                <li>Take breaks between modules if needed</li>
+                <li>Be honest about symptoms - there are no "wrong" answers</li>
+                <li>Establish baseline when healthy for accurate comparison</li>
+                <li>Results are automatically saved to your browser's local storage</li>
+                <li>Consider having a trained observer present during balance tests</li>
+            </ul>
+        </div>
+
+        <div style="text-align: center; margin: 3rem 0;">
+            <a href="index.html" class="btn" style="display: inline-block; margin-right: 1rem;">← Back to Games</a>
+            <a href="assessment/symptom-checklist.html" class="btn-assessment" style="display: inline-block; max-width: 300px;">Begin Full Assessment</a>
+        </div>
+
+        <footer>
+            <p>⚠️ <strong>Medical Disclaimer:</strong> This assessment tool is for educational and screening purposes only. It is not a diagnostic tool and should not replace professional medical evaluation. Always consult with a qualified healthcare provider for proper diagnosis and treatment of concussion or any head injury.</p>
+        </footer>
+    </div>
+</body>
+</html>
