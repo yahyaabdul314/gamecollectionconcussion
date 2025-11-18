@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VR Session - NeuroRecover</title>
+    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+    <script src="progression-tracker.js"></script>
+    <script src="exercise-ai.js"></script>
+    <style>
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        }
+
+        /* Loading Screen */
+        #loadingScreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            flex-direction: column;
+            color: white;
+        }
+
+        .loading-content {
+            text-align: center;
+        }
+
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 5px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 30px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-title {
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+
+        .loading-subtitle {
+            font-size: 18px;
+            opacity: 0.9;
+        }
+
+        /* Exercise Selection Screen */
+        #exerciseSelection {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            color: white;
+            padding: 40px;
+            overflow-y: auto;
+        }
+
+        .selection-content {
+            max-width: 900px;
+            width: 100%;
+        }
+
+        .selection-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .selection-title {
+            font-size: 36px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+
+        .selection-subtitle {
+            font-size: 18px;
+            opacity: 0.9;
+        }
+
+        .analysis-card {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            padding: 30px;
+            border-radius: 20px;
+            margin-bottom: 30px;
+        }
+
+        .analysis-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: bold;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            opacity: 0.8;
+            margin-top: 5px;
+        }
+
+        .exercise-list {
+            display: grid;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .exercise-card {
+            background: white;
+            color: #333;
+            padding: 25px;
+            border-radius: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .exercise-info h3 {
+            margin: 0 0 10px 0;
+            font-size: 22px;
+        }
+
+        .exercise-meta {
+            display: flex;
+            gap: 20px;
+            margin-top: 10px;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .difficulty-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            background: #667eea;
+            color: white;
+        }
+
+        .start-button {
+            padding: 20px 50px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            font-size: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            display: block;
+            margin: 0 auto;
+            transition: all 0.3s ease;
+        }
+
+        .start-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        /* HUD Overlay */
+        #hudOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 9998;
+            display: none;
+        }
+
+        .hud-top {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            padding: 15px 30px;
+            border-radius: 15px;
+            color: white;
+            text-align: center;
+            min-width: 400px;
+        }
+
+        .hud-exercise-name {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .hud-timer {
+            font-size: 32px;
+            font-weight: bold;
+            color: #4ade80;
+        }
+
+        .hud-metrics {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 15px;
+            color: white;
+            min-width: 250px;
+        }
+
+        .metric-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            font-size: 16px;
+        }
+
+        .metric-label {
+            opacity: 0.8;
+        }
+
+        .metric-value {
+            font-weight: bold;
+            color: #4ade80;
+        }
+
+        .metric-value.warning {
+            color: #fbbf24;
+        }
+
+        .metric-value.danger {
+            color: #f87171;
+        }
+
+        /* Live Feedback */
+        .feedback-container {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 600px;
+        }
+
+        .feedback-message {
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(10px);
+            padding: 20px 30px;
+            border-radius: 15px;
+            color: white;
+            text-align: center;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            animation: slideUp 0.3s ease;
+            border-left: 5px solid #4ade80;
+        }
+
+        .feedback-message.warning {
+            border-left-color: #fbbf24;
+            background: rgba(251, 191, 36, 0.2);
+        }
+
+        .feedback-message.correction {
+            border-left-color: #f87171;
+            background: rgba(248, 113, 113, 0.2);
+        }
+
+        .feedback-message.success {
+            border-left-color: #4ade80;
+            background: rgba(74, 222, 128, 0.2);
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Progress Bar */
+        .progress-container {
+            position: absolute;
+            top: 120px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80%;
+            max-width: 500px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4ade80 0%, #22c55e 100%);
+            transition: width 0.3s ease;
+        }
+
+        /* Completion Screen */
+        #completionScreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 10001;
+            color: white;
+            padding: 40px;
+        }
+
+        .completion-content {
+            text-align: center;
+            max-width: 600px;
+        }
+
+        .completion-icon {
+            font-size: 80px;
+            margin-bottom: 20px;
+        }
+
+        .completion-title {
+            font-size: 48px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+
+        .completion-stats {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            padding: 30px;
+            border-radius: 20px;
+            margin: 30px 0;
+        }
+
+        .completion-stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 15px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            font-size: 18px;
+        }
+
+        .completion-stat-row:last-child {
+            border-bottom: none;
+        }
+
+        .completion-buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-top: 30px;
+        }
+
+        .btn {
+            padding: 15px 40px;
+            border: none;
+            border-radius: 50px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: white;
+            color: #667eea;
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 2px solid white;
+        }
+
+        .btn:hover {
+            transform: translateY(-3px);
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div id="loadingScreen">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <div class="loading-title">Initializing VR Session</div>
+            <div class="loading-subtitle">Analyzing your progress and selecting exercises...</div>
+        </div>
+    </div>
+
+    <!-- Exercise Selection Screen -->
+    <div id="exerciseSelection">
+        <div class="selection-content">
+            <div class="selection-header">
+                <h1 class="selection-title">Your Personalized Session</h1>
+                <p class="selection-subtitle">AI-selected exercises based on your performance</p>
+            </div>
+
+            <div class="analysis-card">
+                <h3 style="margin-top: 0;">Your Current Status</h3>
+                <div class="analysis-stats" id="analysisStats">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+
+            <div id="rationale" style="margin-bottom: 30px; font-size: 16px; opacity: 0.9;">
+                <!-- Populated by JS -->
+            </div>
+
+            <h3 style="margin-bottom: 20px;">Today's Exercises</h3>
+            <div class="exercise-list" id="exerciseList">
+                <!-- Populated by JS -->
+            </div>
+
+            <button class="start-button" onclick="startVRSession()">Enter VR Environment</button>
+        </div>
+    </div>
+
+    <!-- VR Scene -->
+    <a-scene id="vrScene" style="display: none;">
+        <!-- 360 Environment -->
+        <a-sky id="environment" radius="100"></a-sky>
+
+        <!-- Lighting -->
+        <a-entity light="type: ambient; color: #FFF; intensity: 0.8"></a-entity>
+        <a-entity light="type: directional; color: #FFF; intensity: 0.5" position="1 1 0"></a-entity>
+
+        <!-- Exercise Container -->
+        <a-entity id="exerciseContainer" position="0 1.6 -3"></a-entity>
+
+        <!-- Camera -->
+        <a-entity id="cameraRig" position="0 0 0">
+            <a-camera id="camera" look-controls wasd-controls="enabled: false">
+                <a-cursor color="#4ade80"></a-cursor>
+            </a-camera>
+        </a-entity>
+    </a-scene>
+
+    <!-- HUD Overlay -->
+    <div id="hudOverlay">
+        <!-- Top HUD -->
+        <div class="hud-top">
+            <div class="hud-exercise-name" id="hudExerciseName">Exercise Name</div>
+            <div class="hud-timer" id="hudTimer">00:00</div>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="progress-container">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+            </div>
+        </div>
+
+        <!-- Metrics Panel -->
+        <div class="hud-metrics">
+            <h4 style="margin-top: 0; margin-bottom: 15px;">Real-Time Metrics</h4>
+            <div class="metric-row">
+                <span class="metric-label">Head Tilt</span>
+                <span class="metric-value" id="metricHeadTilt">0°</span>
+            </div>
+            <div class="metric-row">
+                <span class="metric-label">Movement Speed</span>
+                <span class="metric-value" id="metricSpeed">0°/s</span>
+            </div>
+            <div class="metric-row">
+                <span class="metric-label">Stability</span>
+                <span class="metric-value" id="metricStability">100%</span>
+            </div>
+            <div class="metric-row">
+                <span class="metric-label">Performance</span>
+                <span class="metric-value" id="metricPerformance">0%</span>
+            </div>
+        </div>
+
+        <!-- Live Feedback -->
+        <div class="feedback-container" id="feedbackContainer">
+            <!-- Feedback messages appear here -->
+        </div>
+    </div>
+
+    <!-- Completion Screen -->
+    <div id="completionScreen">
+        <div class="completion-content">
+            <div class="completion-icon">🎉</div>
+            <h1 class="completion-title">Session Complete!</h1>
+            <p style="font-size: 18px; opacity: 0.9;">Great work! Here's how you performed:</p>
+
+            <div class="completion-stats" id="completionStats">
+                <!-- Populated by JS -->
+            </div>
+
+            <div id="performanceFeedback" style="margin: 20px 0; font-size: 18px;">
+                <!-- Populated by JS -->
+            </div>
+
+            <div class="completion-buttons">
+                <button class="btn btn-primary" onclick="window.location.href='dashboard.html'">
+                    View Dashboard
+                </button>
+                <button class="btn btn-secondary" onclick="startNewSession()">
+                    Start Another Session
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="vr-controller.js"></script>
+</body>
+</html>

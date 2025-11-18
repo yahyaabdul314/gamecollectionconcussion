@@ -3,10 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Concussion Recovery VR Games</title>
-    <link rel="stylesheet" href="styles.css">
+    <title>NeuroRecover - Redirecting...</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js"></script>
+    <script>
+        // Redirect to appropriate page on load
+        window.addEventListener('DOMContentLoaded', async function() {
+            initSupabase();
+            const authManager = getAuthManager();
+            const user = await authManager.getCurrentUser();
+
+            if (user) {
+                window.location.href = 'dashboard.html';
+            } else {
+                window.location.href = 'landing.html';
+            }
+        });
+    </script>
+    <link rel="stylesheet" href="styles.css">
     <style>
         .auth-section {
             position: fixed;

@@ -245,7 +245,7 @@
         <!-- Guest Access -->
         <div class="guest-login">
             <p style="color: #666; margin-bottom: 10px;">Or continue without an account</p>
-            <a href="index.html" class="guest-btn">Continue as Guest</a>
+            <a href="landing.html" class="guest-btn">Back to Home</a>
             <p style="color: #999; font-size: 12px; margin-top: 10px;">
                 Note: Progress will only be saved locally
             </p>
@@ -263,7 +263,7 @@
             // Check if already logged in
             const isAuth = await authManager.isAuthenticated();
             if (isAuth) {
-                window.location.href = 'index.html';
+                window.location.href = 'dashboard.html';
             }
         });
 
@@ -303,7 +303,7 @@
             if (result.success) {
                 showSuccess('Sign in successful! Redirecting...');
                 setTimeout(() => {
-                    window.location.href = 'index.html';
+                    window.location.href = 'dashboard.html';
                 }, 1000);
             } else {
                 showError(result.error || 'Sign in failed. Please check your credentials.');
