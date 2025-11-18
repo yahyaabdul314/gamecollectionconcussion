@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Progression Tracker - VR Concussion Recovery</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="progression-tracker.js"></script>
+    <style>
+        .dashboard-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 25px;
+            border-radius: 15px;
+            color: white;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            transition: transform 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .stat-value {
+            font-size: 2.5em;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .stat-label {
+            font-size: 1em;
+            opacity: 0.9;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .stat-sublabel {
+            font-size: 0.9em;
+            opacity: 0.7;
+            margin-top: 5px;
+        }
+
+        .section-card {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+
+        .section-title {
+            font-size: 1.8em;
+            margin-bottom: 20px;
+            color: #333;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin: 20px 0;
+        }
+
+        .milestone-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 15px;
+        }
+
+        .milestone {
+            padding: 15px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            transition: transform 0.2s ease;
+        }
+
+        .milestone:hover {
+            transform: scale(1.05);
+        }
+
+        .milestone.locked {
+            background: #e0e0e0;
+            color: #999;
+            opacity: 0.6;
+        }
+
+        .milestone-name {
+            font-weight: bold;
+            font-size: 1.1em;
+            margin-bottom: 5px;
+        }
+
+        .milestone-desc {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+
+        .milestone-date {
+            font-size: 0.8em;
+            margin-top: 8px;
+            opacity: 0.8;
+        }
+
+        .recommendation {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+            background: #f8f9ff;
+        }
+
+        .recommendation.high {
+            border-left-color: #f5576c;
+            background: #fff5f7;
+        }
+
+        .recommendation.medium {
+            border-left-color: #FFB347;
+            background: #fffbf5;
+        }
+
+        .game-progress-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .game-item {
+            padding: 15px;
+            margin: 10px 0;
+            background: #f5f5f5;
+            border-radius: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .game-info {
+            flex: 1;
+        }
+
+        .game-name {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .game-stats {
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 25px;
+            background: #e0e0e0;
+            border-radius: 15px;
+            overflow: hidden;
+            margin: 10px 0;
+            position: relative;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.5s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+
+        .goal-card {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            padding: 20px;
+            border-radius: 10px;
+            color: white;
+            margin: 10px 0;
+        }
+
+        .recent-session {
+            padding: 12px;
+            margin: 8px 0;
+            background: #f9f9f9;
+            border-radius: 8px;
+            border-left: 3px solid #667eea;
+        }
+
+        .session-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+
+        .session-game {
+            font-weight: bold;
+            color: #333;
+        }
+
+        .session-time {
+            font-size: 0.85em;
+            color: #666;
+        }
+
+        .session-details {
+            font-size: 0.9em;
+            color: #555;
+        }
+
+        .category-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .category-card {
+            padding: 15px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-align: center;
+        }
+
+        .category-name {
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .category-stat {
+            font-size: 1.5em;
+            margin: 5px 0;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 5px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #e0e0e0;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #d0d0d0;
+        }
+
+        .btn-danger {
+            background: #f5576c;
+            color: white;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+
+        .empty-state-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .stat-value {
+                font-size: 2em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <header style="text-align: center; margin-bottom: 40px;">
+            <h1 style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-size: 2.5em;">
+                Progression Tracker
+            </h1>
+            <p style="color: #666; font-size: 1.1em;">Track your recovery journey and celebrate your progress</p>
+        </header>
+
+        <div id="emptyState" class="empty-state" style="display: none;">
+            <div class="empty-state-icon">🎮</div>
+            <h2>No Sessions Recorded Yet</h2>
+            <p>Start playing games to track your progression!</p>
+            <div style="margin-top: 20px;">
+                <a href="index.html" class="btn btn-primary">Browse Games</a>
+            </div>
+        </div>
+
+        <div id="dashboardContent" style="display: none;">
+            <!-- Stats Overview -->
+            <div class="dashboard-grid" id="statsGrid">
+                <!-- Stats will be inserted here -->
+            </div>
+
+            <!-- Goals Progress -->
+            <div class="section-card">
+                <h2 class="section-title">📊 Your Goals</h2>
+                <div id="goalsContainer">
+                    <!-- Goals will be inserted here -->
+                </div>
+            </div>
+
+            <!-- Progress Over Time Chart -->
+            <div class="section-card">
+                <h2 class="section-title">📈 Progress Over Time (Last 30 Days)</h2>
+                <div class="chart-container">
+                    <canvas id="progressChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Category Breakdown -->
+            <div class="section-card">
+                <h2 class="section-title">🎯 Training by Category</h2>
+                <div class="category-grid" id="categoryGrid">
+                    <!-- Categories will be inserted here -->
+                </div>
+                <div class="chart-container" style="margin-top: 30px;">
+                    <canvas id="categoryChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Recommendations -->
+            <div class="section-card" id="recommendationsSection">
+                <h2 class="section-title">💡 Personalized Recommendations</h2>
+                <div id="recommendationsContainer">
+                    <!-- Recommendations will be inserted here -->
+                </div>
+            </div>
+
+            <!-- Milestones -->
+            <div class="section-card">
+                <h2 class="section-title">🏆 Milestones & Achievements</h2>
+                <div class="milestone-grid" id="milestonesContainer">
+                    <!-- Milestones will be inserted here -->
+                </div>
+            </div>
+
+            <!-- Game Progress -->
+            <div class="section-card">
+                <h2 class="section-title">🎮 Game-Specific Progress</h2>
+                <div class="game-progress-list" id="gameProgressList">
+                    <!-- Game progress will be inserted here -->
+                </div>
+            </div>
+
+            <!-- Recent Sessions -->
+            <div class="section-card">
+                <h2 class="section-title">⏱️ Recent Sessions</h2>
+                <div id="recentSessionsList">
+                    <!-- Recent sessions will be inserted here -->
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="section-card">
+                <h2 class="section-title">⚙️ Actions</h2>
+                <div class="action-buttons">
+                    <button class="btn btn-primary" onclick="exportData()">📥 Export Data</button>
+                    <button class="btn btn-secondary" onclick="showGoalSettings()">🎯 Set Goals</button>
+                    <a href="index.html" class="btn btn-primary">🎮 Play Games</a>
+                    <a href="assessment.html" class="btn btn-primary">📋 Take Assessment</a>
+                    <button class="btn btn-danger" onclick="resetProgress()">🗑️ Reset Progress</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let tracker;
+        let progressChart;
+        let categoryChart;
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', async function() {
+            // Initialize Supabase
+            initSupabase();
+
+            // Create and initialize tracker
+            tracker = new ProgressionTracker();
+            await tracker.initialize();
+
+            // Load dashboard
+            await loadDashboard();
+        });
+
+        async function loadDashboard() {
+            // Ensure tracker is initialized
+            if (!tracker.data) {
+                await tracker.initialize();
+            }
+
+            const stats = tracker.getOverallStats();
+
+            // Check if we have any data
+            if (stats.totalSessions === 0) {
+                document.getElementById('emptyState').style.display = 'block';
+                document.getElementById('dashboardContent').style.display = 'none';
+                return;
+            }
+
+            document.getElementById('emptyState').style.display = 'none';
+            document.getElementById('dashboardContent').style.display = 'block';
+
+            // Load all sections
+            loadStats(stats);
+            loadGoals();
+            loadProgressChart();
+            loadCategoryBreakdown();
+            loadRecommendations();
+            loadMilestones();
+            loadGameProgress();
+            loadRecentSessions();
+        }
+
+        function loadStats(stats) {
+            const statsGrid = document.getElementById('statsGrid');
+            statsGrid.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-label">Total Sessions</div>
+                    <div class="stat-value">${stats.totalSessions}</div>
+                    <div class="stat-sublabel">${stats.uniqueGames} unique games</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Time Invested</div>
+                    <div class="stat-value">${stats.totalHours}h</div>
+                    <div class="stat-sublabel">Avg: ${stats.averageSessionDuration}s per session</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Current Streak</div>
+                    <div class="stat-value">${stats.currentStreak}</div>
+                    <div class="stat-sublabel">consecutive days</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Completion Rate</div>
+                    <div class="stat-value">${stats.completionRate}%</div>
+                    <div class="stat-sublabel">of sessions completed</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Milestones</div>
+                    <div class="stat-value">${stats.milestonesEarned}</div>
+                    <div class="stat-sublabel">achievements unlocked</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Days Active</div>
+                    <div class="stat-value">${Math.floor((Date.now() - new Date(stats.startDate)) / (1000 * 60 * 60 * 24))}</div>
+                    <div class="stat-sublabel">since ${new Date(stats.startDate).toLocaleDateString()}</div>
+                </div>
+            `;
+        }
+
+        function loadGoals() {
+            const goalProgress = tracker.getGoalProgress();
+            const goalsContainer = document.getElementById('goalsContainer');
+
+            goalsContainer.innerHTML = `
+                <div class="goal-card">
+                    <h3>📅 Daily Goal</h3>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: ${Math.min(goalProgress.daily.percentage, 100)}%">
+                            ${goalProgress.daily.current} / ${goalProgress.daily.target} games
+                        </div>
+                    </div>
+                    ${goalProgress.daily.completed ? '<p>✅ Goal completed! Great work!</p>' : ''}
+                </div>
+                <div class="goal-card">
+                    <h3>📆 Weekly Goal</h3>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: ${Math.min(goalProgress.weekly.percentage, 100)}%">
+                            ${goalProgress.weekly.current} / ${goalProgress.weekly.target} games
+                        </div>
+                    </div>
+                    ${goalProgress.weekly.completed ? '<p>✅ Goal completed! Excellent!</p>' : ''}
+                </div>
+            `;
+        }
+
+        function loadProgressChart() {
+            const progressData = tracker.getProgressOverTime(30);
+            const ctx = document.getElementById('progressChart');
+
+            if (progressChart) {
+                progressChart.destroy();
+            }
+
+            progressChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: progressData.map(d => new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })),
+                    datasets: [{
+                        label: 'Sessions per Day',
+                        data: progressData.map(d => d.sessions),
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function loadCategoryBreakdown() {
+            const categoryProgress = tracker.getCategoryProgress();
+            const categoryGrid = document.getElementById('categoryGrid');
+
+            categoryGrid.innerHTML = Object.entries(categoryProgress).map(([key, cat]) => `
+                <div class="category-card">
+                    <div class="category-name">${cat.name}</div>
+                    <div class="category-stat">${cat.sessions}</div>
+                    <div style="font-size: 0.9em; opacity: 0.9;">${cat.duration} minutes</div>
+                </div>
+            `).join('');
+
+            // Category pie chart
+            const ctx = document.getElementById('categoryChart');
+            if (categoryChart) {
+                categoryChart.destroy();
+            }
+
+            const labels = Object.values(categoryProgress).map(c => c.name);
+            const data = Object.values(categoryProgress).map(c => c.sessions);
+
+            categoryChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: [
+                            '#667eea',
+                            '#764ba2',
+                            '#f093fb',
+                            '#4facfe',
+                            '#43e97b'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        function loadRecommendations() {
+            const recommendations = tracker.getRecommendations();
+            const container = document.getElementById('recommendationsContainer');
+
+            if (recommendations.length === 0) {
+                container.innerHTML = '<p style="color: #666;">No recommendations at this time. Keep up the great work!</p>';
+                return;
+            }
+
+            container.innerHTML = recommendations.map(rec => `
+                <div class="recommendation ${rec.priority}">
+                    <strong>${rec.priority === 'high' ? '🔴' : rec.priority === 'medium' ? '🟡' : '🟢'} ${rec.message}</strong>
+                </div>
+            `).join('');
+        }
+
+        function loadMilestones() {
+            const milestones = tracker.data.milestones;
+            const container = document.getElementById('milestonesContainer');
+
+            const allMilestones = [
+                { id: 'first_session', name: 'First Steps', description: 'Complete your first therapy session' },
+                { id: 'five_sessions', name: 'Building Momentum', description: 'Complete 5 therapy sessions' },
+                { id: 'ten_sessions', name: 'Dedicated Recoverer', description: 'Complete 10 therapy sessions' },
+                { id: 'twenty_sessions', name: 'Road to Recovery', description: 'Complete 20 therapy sessions' },
+                { id: 'all_categories', name: 'Well Rounded', description: 'Play games from all 5 categories' },
+                { id: 'week_streak', name: 'Consistent Effort', description: 'Play games for 7 consecutive days' },
+                { id: 'hour_played', name: 'Time Investment', description: 'Spend 1 hour in therapy' }
+            ];
+
+            container.innerHTML = allMilestones.map(m => {
+                const earned = milestones.find(em => em.id === m.id);
+                return `
+                    <div class="milestone ${earned ? '' : 'locked'}">
+                        <div class="milestone-name">${earned ? '✅' : '🔒'} ${m.name}</div>
+                        <div class="milestone-desc">${m.description}</div>
+                        ${earned ? `<div class="milestone-date">Earned: ${new Date(earned.earnedAt).toLocaleDateString()}</div>` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function loadGameProgress() {
+            const gameProgress = tracker.getAllGameProgress('sessionsCount');
+            const container = document.getElementById('gameProgressList');
+
+            if (gameProgress.length === 0) {
+                container.innerHTML = '<p style="color: #666;">No game progress recorded yet.</p>';
+                return;
+            }
+
+            container.innerHTML = gameProgress.map(game => `
+                <div class="game-item">
+                    <div class="game-info">
+                        <div class="game-name">${game.name}</div>
+                        <div class="game-stats">
+                            ${game.sessionsCount} sessions •
+                            High Score: ${game.highScore} •
+                            Completion: ${game.completionRate.toFixed(0)}%
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function loadRecentSessions() {
+            const sessions = tracker.getRecentSessions(10);
+            const container = document.getElementById('recentSessionsList');
+
+            if (sessions.length === 0) {
+                container.innerHTML = '<p style="color: #666;">No sessions recorded yet.</p>';
+                return;
+            }
+
+            container.innerHTML = sessions.map(session => {
+                const date = new Date(session.timestamp);
+                const timeAgo = getTimeAgo(date);
+                return `
+                    <div class="recent-session">
+                        <div class="session-header">
+                            <span class="session-game">${session.gameName}</span>
+                            <span class="session-time">${timeAgo}</span>
+                        </div>
+                        <div class="session-details">
+                            Duration: ${Math.floor(session.duration / 60)}m ${session.duration % 60}s •
+                            Score: ${session.score || 'N/A'} •
+                            ${session.completed ? '✅ Completed' : '⏸️ Incomplete'}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function getTimeAgo(date) {
+            const seconds = Math.floor((Date.now() - date) / 1000);
+
+            if (seconds < 60) return 'Just now';
+            if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+            if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+            if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
+            return date.toLocaleDateString();
+        }
+
+        function exportData() {
+            const data = tracker.exportData();
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `progression-data-${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function showGoalSettings() {
+            const currentGoals = tracker.goals;
+            const dailyTarget = prompt('Daily goal (number of games):', currentGoals.daily.target);
+            const weeklyTarget = prompt('Weekly goal (number of games):', currentGoals.weekly.target);
+
+            if (dailyTarget && weeklyTarget) {
+                tracker.setGoals(
+                    { target: parseInt(dailyTarget), unit: 'games' },
+                    { target: parseInt(weeklyTarget), unit: 'games' }
+                );
+                loadGoals();
+                alert('Goals updated successfully!');
+            }
+        }
+
+        function resetProgress() {
+            if (tracker.resetData()) {
+                location.reload();
+            }
+        }
+    </script>
+</body>
+</html>
