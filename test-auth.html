@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auth Test - NeuroRecover</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+        h1 {
+            color: #667eea;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        button {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            opacity: 0.9;
+        }
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f0f0f0;
+            border-radius: 8px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Authentication Test Page</h1>
+    <p>Use this page to test authentication functionality and diagnose issues.</p>
+
+    <div class="test-section">
+        <h2>Test 1: Guest Mode</h2>
+        <p>Click the button below to test guest mode:</p>
+        <button onclick="testGuestMode()">Test Guest Mode</button>
+        <div id="guestResult" class="result" style="display: none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test 2: Check Supabase</h2>
+        <p>Check if Supabase library is loaded:</p>
+        <button onclick="testSupabase()">Check Supabase</button>
+        <div id="supabaseResult" class="result" style="display: none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test 3: Test Signup (Fake)</h2>
+        <p>Test the signup flow with fake credentials:</p>
+        <input type="email" id="testEmail" placeholder="test@example.com" style="padding: 10px; margin: 5px; width: 200px;">
+        <input type="password" id="testPassword" placeholder="password123" style="padding: 10px; margin: 5px; width: 200px;">
+        <br>
+        <button onclick="testSignup()">Test Signup</button>
+        <div id="signupResult" class="result" style="display: none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test 4: Check LocalStorage</h2>
+        <p>View all data in localStorage:</p>
+        <button onclick="checkLocalStorage()">Check LocalStorage</button>
+        <button onclick="clearLocalStorage()">Clear All Data</button>
+        <div id="storageResult" class="result" style="display: none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Quick Actions</h2>
+        <button onclick="window.location.href='auth.html'">Go to Auth Page</button>
+        <button onclick="window.location.href='dashboard.html'">Go to Dashboard</button>
+        <button onclick="window.location.href='landing.html'">Go to Landing</button>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+
+    <script>
+        function showResult(elementId, message, isSuccess = true) {
+            const el = document.getElementById(elementId);
+            el.textContent = message;
+            el.style.display = 'block';
+            el.className = 'result ' + (isSuccess ? 'success' : 'error');
+        }
+
+        function testGuestMode() {
+            try {
+                // Set guest mode
+                localStorage.setItem('guestMode', 'true');
+                localStorage.setItem('guestUser', JSON.stringify({
+                    id: 'guest-' + Date.now(),
+                    email: 'guest@local',
+                    name: 'Guest User'
+                }));
+
+                // Check if it worked
+                const guestMode = localStorage.getItem('guestMode');
+                const guestUser = JSON.parse(localStorage.getItem('guestUser'));
+
+                if (guestMode === 'true' && guestUser) {
+                    showResult('guestResult',
+                        '✅ SUCCESS!\n\n' +
+                        'Guest mode set correctly:\n' +
+                        JSON.stringify(guestUser, null, 2) +
+                        '\n\nYou can now go to the dashboard!',
+                        true
+                    );
+                } else {
+                    showResult('guestResult',
+                        '❌ FAILED!\n\nGuest mode was not set correctly.',
+                        false
+                    );
+                }
+            } catch (error) {
+                showResult('guestResult',
+                    '❌ ERROR!\n\n' + error.message,
+                    false
+                );
+            }
+        }
+
+        function testSupabase() {
+            let result = '🔍 Supabase Status:\n\n';
+
+            // Check if library loaded
+            if (typeof supabase === 'undefined') {
+                result += '❌ Supabase library NOT loaded\n';
+                result += 'The CDN script might not be loading.\n\n';
+                showResult('supabaseResult', result, false);
+                return;
+            } else {
+                result += '✅ Supabase library loaded\n\n';
+            }
+
+            // Check if functions exist
+            if (typeof initSupabase === 'function') {
+                result += '✅ initSupabase() function exists\n';
+            } else {
+                result += '❌ initSupabase() function missing\n';
+            }
+
+            if (typeof getAuthManager === 'function') {
+                result += '✅ getAuthManager() function exists\n';
+            } else {
+                result += '❌ getAuthManager() function missing\n';
+            }
+
+            // Try to initialize
+            try {
+                initSupabase();
+                const authManager = getAuthManager();
+                if (authManager) {
+                    result += '\n✅ AuthManager initialized successfully\n';
+                    result += '\nYou can use signup/signin!\n';
+                    showResult('supabaseResult', result, true);
+                } else {
+                    result += '\n❌ AuthManager initialization failed\n';
+                    showResult('supabaseResult', result, false);
+                }
+            } catch (error) {
+                result += '\n❌ Error initializing:\n' + error.message;
+                showResult('supabaseResult', result, false);
+            }
+        }
+
+        async function testSignup() {
+            const email = document.getElementById('testEmail').value || 'test@example.com';
+            const password = document.getElementById('testPassword').value || 'password123';
+
+            let result = '🧪 Testing Signup:\n\n';
+            result += `Email: ${email}\n`;
+            result += `Password: ${password}\n\n`;
+
+            try {
+                // Check if Supabase is available
+                if (typeof initSupabase !== 'function') {
+                    result += '❌ Supabase not available\n';
+                    result += 'Use guest mode instead!\n';
+                    showResult('signupResult', result, false);
+                    return;
+                }
+
+                initSupabase();
+                const authManager = getAuthManager();
+
+                if (!authManager) {
+                    result += '❌ AuthManager not initialized\n';
+                    showResult('signupResult', result, false);
+                    return;
+                }
+
+                result += '⏳ Attempting signup...\n\n';
+                showResult('signupResult', result, true);
+
+                const signupResult = await authManager.signUp(email, password, { name: 'Test User' });
+
+                if (signupResult.success) {
+                    result += '✅ SIGNUP SUCCESS!\n\n';
+                    result += JSON.stringify(signupResult, null, 2);
+                    showResult('signupResult', result, true);
+                } else {
+                    result += '❌ Signup failed:\n\n';
+                    result += signupResult.error || 'Unknown error';
+                    showResult('signupResult', result, false);
+                }
+            } catch (error) {
+                result += '❌ ERROR:\n\n';
+                result += error.message;
+                showResult('signupResult', result, false);
+            }
+        }
+
+        function checkLocalStorage() {
+            let result = '📦 LocalStorage Contents:\n\n';
+
+            if (localStorage.length === 0) {
+                result += 'No data stored yet.\n';
+            } else {
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    const value = localStorage.getItem(key);
+                    result += `${key}:\n${value}\n\n`;
+                }
+            }
+
+            showResult('storageResult', result, true);
+        }
+
+        function clearLocalStorage() {
+            if (confirm('Are you sure you want to clear ALL localStorage data?')) {
+                localStorage.clear();
+                showResult('storageResult', '✅ All localStorage data cleared!', true);
+            }
+        }
+
+        // Auto-run on load
+        window.addEventListener('DOMContentLoaded', function() {
+            console.log('Test page loaded');
+            console.log('Supabase available:', typeof supabase !== 'undefined');
+            console.log('initSupabase available:', typeof initSupabase !== 'undefined');
+        });
+    </script>
+</body>
+</html>
