@@ -189,3 +189,179 @@ class WebXRUtils {
         }
     }
 }
+
+// Physics Tracker Class for monitoring tilt, speed, and angle
+class PhysicsTracker {
+    constructor(camera) {
+        this.camera = camera;
+        this.lastPosition = new THREE.Vector3();
+        this.lastRotation = new THREE.Euler();
+        this.velocity = new THREE.Vector3();
+        this.angularVelocity = new THREE.Euler();
+        this.speed = 0;
+        this.tilt = { x: 0, y: 0, z: 0 };
+        this.angle = { x: 0, y: 0, z: 0 };
+        this.lastTime = Date.now();
+
+        // Initialize last position and rotation
+        this.lastPosition.copy(camera.position);
+        this.lastRotation.copy(camera.rotation);
+    }
+
+    update() {
+        const currentTime = Date.now();
+        const deltaTime = (currentTime - this.lastTime) / 1000; // Convert to seconds
+
+        if (deltaTime > 0) {
+            // Calculate velocity (speed)
+            this.velocity.subVectors(this.camera.position, this.lastPosition).divideScalar(deltaTime);
+            this.speed = this.velocity.length();
+
+            // Calculate angular velocity
+            this.angularVelocity.x = (this.camera.rotation.x - this.lastRotation.x) / deltaTime;
+            this.angularVelocity.y = (this.camera.rotation.y - this.lastRotation.y) / deltaTime;
+            this.angularVelocity.z = (this.camera.rotation.z - this.lastRotation.z) / deltaTime;
+
+            // Update tilt (current rotation in degrees)
+            this.tilt.x = THREE.MathUtils.radToDeg(this.camera.rotation.x);
+            this.tilt.y = THREE.MathUtils.radToDeg(this.camera.rotation.y);
+            this.tilt.z = THREE.MathUtils.radToDeg(this.camera.rotation.z);
+
+            // Update angle (angular velocity in degrees per second)
+            this.angle.x = THREE.MathUtils.radToDeg(this.angularVelocity.x);
+            this.angle.y = THREE.MathUtils.radToDeg(this.angularVelocity.y);
+            this.angle.z = THREE.MathUtils.radToDeg(this.angularVelocity.z);
+
+            // Update last values
+            this.lastPosition.copy(this.camera.position);
+            this.lastRotation.copy(this.camera.rotation);
+            this.lastTime = currentTime;
+        }
+    }
+
+    getSpeed() {
+        return this.speed;
+    }
+
+    getTilt() {
+        return this.tilt;
+    }
+
+    getAngle() {
+        return this.angle;
+    }
+
+    getVelocity() {
+        return this.velocity;
+    }
+
+    getData() {
+        return {
+            speed: this.speed.toFixed(3),
+            tilt: {
+                x: this.tilt.x.toFixed(1),
+                y: this.tilt.y.toFixed(1),
+                z: this.tilt.z.toFixed(1)
+            },
+            angle: {
+                x: this.angle.x.toFixed(1),
+                y: this.angle.y.toFixed(1),
+                z: this.angle.z.toFixed(1)
+            }
+        };
+    }
+}
+
+// Physics Info Display Class
+class PhysicsDisplay {
+    constructor(scene, position = { x: -1.5, y: 2, z: -3 }) {
+        this.scene = scene;
+        this.position = position;
+        this.textMesh = null;
+        this.createDisplay();
+    }
+
+    createDisplay() {
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        canvas.width = 512;
+        canvas.height = 512;
+
+        this.canvas = canvas;
+        this.context = context;
+
+        const texture = new THREE.CanvasTexture(canvas);
+        const material = new THREE.MeshBasicMaterial({
+            map: texture,
+            transparent: true,
+            side: THREE.DoubleSide
+        });
+        const geometry = new THREE.PlaneGeometry(1, 1);
+        this.textMesh = new THREE.Mesh(geometry, material);
+        this.textMesh.position.set(this.position.x, this.position.y, this.position.z);
+        this.scene.add(this.textMesh);
+    }
+
+    update(physicsData) {
+        const ctx = this.context;
+        const canvas = this.canvas;
+
+        // Clear canvas
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Draw border
+        ctx.strokeStyle = '#00ffff';
+        ctx.lineWidth = 4;
+        ctx.strokeRect(10, 10, canvas.width - 20, canvas.height - 20);
+
+        // Title
+        ctx.fillStyle = '#00ffff';
+        ctx.font = 'Bold 32px Arial';
+        ctx.textAlign = 'left';
+        ctx.fillText('PHYSICS INFO', 30, 60);
+
+        // Speed
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'Bold 28px Arial';
+        ctx.fillText('Speed:', 30, 120);
+        ctx.fillStyle = '#00ff00';
+        ctx.font = '24px Arial';
+        ctx.fillText(`${physicsData.speed} m/s`, 30, 155);
+
+        // Tilt
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'Bold 28px Arial';
+        ctx.fillText('Tilt (degrees):', 30, 215);
+        ctx.fillStyle = '#ffaa00';
+        ctx.font = '22px Arial';
+        ctx.fillText(`Pitch: ${physicsData.tilt.x}°`, 30, 250);
+        ctx.fillText(`Yaw:   ${physicsData.tilt.y}°`, 30, 285);
+        ctx.fillText(`Roll:  ${physicsData.tilt.z}°`, 30, 320);
+
+        // Angle (Angular Velocity)
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'Bold 28px Arial';
+        ctx.fillText('Angular Speed (°/s):', 30, 380);
+        ctx.fillStyle = '#ff00ff';
+        ctx.font = '22px Arial';
+        ctx.fillText(`Pitch: ${physicsData.angle.x}°/s`, 30, 415);
+        ctx.fillText(`Yaw:   ${physicsData.angle.y}°/s`, 30, 450);
+        ctx.fillText(`Roll:  ${physicsData.angle.z}°/s`, 30, 485);
+
+        // Update texture
+        this.textMesh.material.map.needsUpdate = true;
+    }
+
+    setPosition(x, y, z) {
+        this.textMesh.position.set(x, y, z);
+    }
+
+    setVisible(visible) {
+        this.textMesh.visible = visible;
+    }
+
+    remove() {
+        this.scene.remove(this.textMesh);
+    }
+}
